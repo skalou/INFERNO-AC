@@ -135,7 +135,7 @@ ac = {
   getSim = function() return { windowWidth = 1920, windowHeight = 1080, carsCount = 4, isOnlineRace = true } end,
   getUI = function() return { uiScale = 1, windowSize = vec2(1920, 1080) } end,
   getCar = function(i) return { index = i, isConnected = true } end,
-  isTaggedAsFriend = function(i) return i == 2 end,
+  isTaggedAsFriend = function(name) return name == 'Player2' end,
   getAppWindows = function() return { { name = 'INFERNO-Chat Alerts_main', title = 'INFERNO-Chat Alerts' } } end,
   accessAppWindow = function(n) return mainWindow end,
   onChatMessage = function(fn) chatHandler = fn end,
@@ -301,6 +301,24 @@ check('IsuChat shared keyword file is rejected', function()
     appVersion = '2.8.2', payload = payload, checksum = M.backup.makeBackupChecksum('2.8.2', 1, payload) })
   assert(not M.sharing.stageSharedKeywordImport('OldList.json', serverKey, 'Server: Test'), 'old shared file was accepted')
   assert(status():find('format', 1, true), status())
+end)
+
+check('friend list: tagged friend is detected and nothing is written to disk', function()
+  M.friends.friendList.dirty = true
+  M.friends.friendList.refresh()
+  assert(M.friends.friendList.isFriend('Player2'), 'friend not detected')
+  assert(M.friends.friendList.get()[1] == 'Player2', 'not listed for the Debug panel')
+  for path in pairs(FS) do assert(not path:find('friends', 1, true), 'written: ' .. path) end
+end)
+check('shared keyword list: no server IP, port or profile key in the file', function()
+  M.keywords.saveKeywords({ 'delta' })
+  M.backup.pendingOverwrite.export = nil
+  assert(M.sharing.exportSharedKeywordProfile(serverKey, 'Server: Test', 'NoAddress'), status())
+  local data = FS[stateDir .. '\\SharedKeywords\\NoAddress.json']
+  assert(not data:find('1.2.3.4', 1, true), 'IP in export')
+  assert(not data:find('9600', 1, true), 'port in export')
+  assert(not data:find('serverProfileKey', 1, true), 'profile key in export')
+  assert(not data:find('serverAddress', 1, true) and not data:find('serverPort', 1, true), 'address fields in export')
 end)
 
 local checkResults = {}

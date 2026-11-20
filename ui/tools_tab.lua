@@ -72,30 +72,13 @@ local function drawToolsTab()
   end
   ui.separator()
   local friends = friendList.get()
-  ui.treeNode('Friends (' .. #friendList.known .. ' saved, ' .. #friends .. ' connected)###friendsDebug', function()
-    if #friendList.known == 0 then
-      ui.textDisabled('No friends saved yet. A tagged friend is saved when seen in an online race.')
+  ui.treeNode('Friends (' .. #friends .. ' connected)###friendsDebug', function()
+    if #friends == 0 then
+      ui.textDisabled('No tagged friend connected. Names are not saved; the list shows only the current online race.')
     end
-    for _, name in ipairs(friendList.known) do
-      if friendList.isFriend(name) then
-        ui.text(name .. '  (connected)')
-      else
-        ui.textDisabled(name)
-      end
+    for _, name in ipairs(friends) do
+      ui.text(name)
     end
-    ui.pushID('openFriendsFolder')
-    if ui.iconButton(ui.Icons.Folder, vec2(22, 22)) then
-      if friendList.ensureFolder() then
-        os.openInExplorer(friendList.folder)
-      else
-        friendList.status = 'Could not create the friends folder.'
-      end
-    end
-    ui.popID()
-    ui.sameLine()
-    if ui.button('Reset friends list') then friendList.reset() end
-    if friendList.status ~= '' then ui.textWrapped(friendList.status) end
-    ui.textDisabled('File: ' .. friendList.file)
   end)
   ui.separator()
   ui.treeNode('Alert history (' .. #alertHistory.items .. ' of ' .. alertHistory.max .. ')###alertHistoryDebug', function()
