@@ -8,8 +8,7 @@ First INFERNO-AC release, after IsuChat Alert 2.8.2 (0.3.0 was planned but never
 - No compatibility with old data: settings use a new storage prefix (`INFERNO_`), and old backups and shared keyword files are rejected with a message. Keywords can be brought over through a `.txt` list (one keyword per line).
 - New file formats: settings backups `INFERNO-Settings` v2, shared keyword lists `INFERNO-KeywordList` v1. A file is read only if its format id and version match exactly.
 - No default keywords: a new install or a keyword reset starts with only the built-in "your name" and "friends" entries. Default backup name: `My settings`.
-- Privacy: the friend list is no longer saved to disk (the tags belong to CSP and Content Manager). Shared keyword lists no longer contain the server IP, port or profile key; the import never read them.
-- Known remaining case: a server without a name uses its IP as the label in shared files (`getKeywordProfileContext`).
+- Shared keyword lists keep the server address and port (they identify the server; every player who joins knows the IP). They no longer contain the profile key, which only repeated the IP and port. The creator's driver name stays, because the import shows who shared a list.
 - Code split from one 3 900-line script into `core/`, `ui/` and `dev/` modules.
 - INFERNO-DEV (icon browser) is now a window of the app instead of a separate app.
 - Fixed: debug log spam. Validating a keyword profile wrote one `[TRACE]` line to `debug_log.txt` per character while debug mode was on.

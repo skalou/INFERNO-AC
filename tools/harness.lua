@@ -310,15 +310,14 @@ check('friend list: tagged friend is detected and nothing is written to disk', f
   assert(M.friends.friendList.get()[1] == 'Player2', 'not listed for the Debug panel')
   for path in pairs(FS) do assert(not path:find('friends', 1, true), 'written: ' .. path) end
 end)
-check('shared keyword list: no server IP, port or profile key in the file', function()
+check('shared keyword list: server address and port are written, the profile key is not', function()
   M.keywords.saveKeywords({ 'delta' })
   M.backup.pendingOverwrite.export = nil
   assert(M.sharing.exportSharedKeywordProfile(serverKey, 'Server: Test', 'NoAddress'), status())
   local data = FS[stateDir .. '\\SharedKeywords\\NoAddress.json']
-  assert(not data:find('1.2.3.4', 1, true), 'IP in export')
-  assert(not data:find('9600', 1, true), 'port in export')
+  assert(data:find('1.2.3.4', 1, true), 'server address missing')
+  assert(data:find('serverPort', 1, true), 'server port missing')
   assert(not data:find('serverProfileKey', 1, true), 'profile key in export')
-  assert(not data:find('serverAddress', 1, true) and not data:find('serverPort', 1, true), 'address fields in export')
 end)
 
 local checkResults = {}

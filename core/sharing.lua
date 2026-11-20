@@ -71,9 +71,13 @@ local function exportSharedKeywordProfile(key, serverLabel, exportName)
     return false
   end
   local serverName = ac.getServerName() or ''
+  local serverAddress = ac.getServerIP() or ''
+  local serverPort = ac.getServerPortTCP()
   local payload = JSON.stringify({
     serverLabel = serverLabel,
     serverName = serverName,
+    serverAddress = serverAddress,
+    serverPort = serverPort,
     profile = profile
   })
   local checksum = type(payload) == 'string' and makeBackupChecksum(appVersion, sharedKeywordFormatVersion, payload) or nil
