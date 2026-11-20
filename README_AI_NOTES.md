@@ -1,5 +1,18 @@
 # AI Conversation Notes
 
+## Changelog draft: 0.3.0 (beta, not released yet)
+
+First INFERNO-AC version. The version number restarts at 0.3.0 (beta) after the rename from IsuChat Alert 2.8.2.
+
+- Renamed IsuChat Alert to INFERNO-Chat Alerts (`apps\lua\INFERNO-ChatAlerts`). Settings, friends, saves and shared keyword lists are copied once from `isuChatAlertLua`; old files are kept.
+- Code split from one 3 900-line script into `core/`, `ui/` and `dev/` modules. No behaviour change (verified with LuaJIT and a stubbed CSP run).
+- INFERNO-DEV (icon browser) is now a window of the app instead of a separate app.
+- Fixed: debug log spam. Validating a keyword profile wrote one `[TRACE]` line to `debug_log.txt` per character while debug mode was on.
+- Checked: `ac.setWindowOpen` is a valid CSP function. The test preview and gear icon calls are kept.
+- Known issues (not fixed yet): the gear icon in the alert window shows `âš™` (double-encoded UTF-8 and wrong `ui.drawText` arguments), and its click test uses screen coordinates (`ui.mousePos`) against a window-local rectangle, so the click almost never registers.
+- Removed outdated development notes (`FINAL_PROJECT_STATUS.md`, `PROJECT_SUMMARY.md`, `IMPLEMENTATION_NOTES.md`, `FIX_SUMMARY.md`); `deploy.ps1` no longer copies `.md` files to the game.
+- Version strings to update at release: `manifest.ini` `VERSION` and `appVersion` in `core/paths.lua`. Caution: `appVersion` is written into backups, and `validateBackupVersion` rejects backups from a newer version, so going from 2.8.2 to 0.3.0 would reject every existing backup unless the backup check is changed.
+
 ## Session Update (INFERNO-AC rename)
 
 - Mod renamed from "IsuChat Alert" to "INFERNO-AC". Release app: `INFERNO-ChatAlerts` (display name `INFERNO-Chat Alerts`).
@@ -25,7 +38,7 @@
 ## Historical fixes (pre-rename, kept for context)
 
 - `ac.getSessionID()` does not exist in the CSP Lua environment and used to crash the app. `getServerName()` now identifies the session: server name, else server IP, else `Solo_<driver>_<track>` for offline sessions.
-- Older notes say the `ac.setWindowOpen('main'/'config', true)` calls crashed and were removed. The code still calls them (test previews in `ui/display_tab.lua`, gear icon in `ui/alert_window.lua`).
+- Older notes said the `ac.setWindowOpen('main'/'config', true)` calls crashed and were removed. Checked against the CSP SDK shipped with the game (`extension\internal\lua-sdk\ac_apps\lib.lua`): `ac.setWindowOpen(windowID, opened)` exists and opens a window by its manifest `ID`. The calls are correct and kept (test previews in `ui/display_tab.lua`, gear icon in `ui/alert_window.lua`). The SDK repository on GitHub is incomplete (it also lacks `ac.getAppWindows`), so check the installed SDK first.
 - Sound queueing: the only queue in the code is `hiddenSoundQueue` (sounds of hidden keyword alerts, max 5, a full queue drops new sounds). Older notes described an `alertQueue` system with `addToAlertQueue()`/`initAlertSystem()` and an "Alert Queue" settings tab: none of that exists in the code and those notes were removed.
 
 ## Session Update (friends list, dev tools)
