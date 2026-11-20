@@ -1,0 +1,17 @@
+# Visual Studio and local tooling
+.vs/
+*.user
+*.code-workspace
+session-state/
+debug_log.txt
+Ska-error-bis.txt
+
+# Personal data created by the mod (friends, saves, server keyword lists)
+ServerSharedKeywords/
+
+# Game sounds: most are copyrighted extracts and must not be published.
+# Only the default alert is tracked.
+sounds/*
+!sounds/DefaultAppSounds/
+sounds/DefaultAppSounds/*
+!sounds/DefaultAppSounds/00defaultALERT.wav

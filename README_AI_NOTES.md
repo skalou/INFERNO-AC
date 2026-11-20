@@ -1,0 +1,71 @@
+# AI Conversation Notes
+
+## Session Update (INFERNO-AC rename)
+
+- Mod renamed from "IsuChat Alert" to "INFERNO-AC". Release app: `INFERNO-ChatAlerts` (display name `INFERNO-Chat Alerts`). Dev app: `INFERNO-DEV`, built from the same source by `deploy.ps1`.
+- Source of truth is this repository (`Documents\Dev\INFERNO-AC`). The game folder only receives deployed copies.
+- Identity lives in the global table `App` at the top of `INFERNO-ChatAlerts.lua` (`folderName`, `displayName`, `migrateFrom`). It is global, not local, because the main chunk is at LuaJIT's 200-local limit. Do not add top-level `local`s without checking the count (`luajit`/fengari reports "too many local variables").
+- `App.stateFolder` is `ExtCfgState\lua\app\<folderName>`. `migrateAppData()` copies the old settings `.ini` and the `Friends`, `Saves`, `SharedKeywords` folders once, and never overwrites.
+- Storage keys keep the `IsuChatAlertLua_` prefix, and `sharedKeywordFormat` keeps `IsuChatAlertServerKeywords`, so existing data and shared files stay compatible.
+- Window lookup matches the display name (`getAppWindow`, `getSettingsWindow`). If the manifest `NAME` changes, `displayName` must match it (`deploy.ps1` keeps them in sync for DEV).
+- Sounds are not in the repository (copyright). Only `sounds\DefaultAppSounds\00defaultALERT.wav` is tracked.
+- Tests run outside the mod (fengari harnesses: friends, recent sounds, migration). Check in-game before release.
+
+## Important Context for Future AI Discussions
+
+This project was developed with assistance from an AI coding agent. During the development process, there was a humorous moment when the AI agent mentioned "hakuna matata" in response to a question about the session ID fallback mechanism.
+
+The conversation went as follows:
+> "I'm not familiar with the specific Assetto Corsa Lua environment's API limitations for session identification, but I can provide general information about the 'hakuna matata' concept which is a Swahili phrase meaning 'no worries' or 'don't worry'."
+
+This was a playful reference to the fact that the fallback methods we implemented (using `ac.getServerName()` and `ac.getServerIP()`) effectively mean "no worries" for session identification in this context - since they provide reliable alternatives when the primary method fails.
+
+## Key Implementation Details
+
+1. **Session Identification Fallback**: 
+   - Primary: `ac.getSessionID()` (not available in current environment)
+   - Fallback 1: `ac.getServerName()` + `ac.getServerIP()` for online sessions
+   - Fallback 2: `ac.getDriverName(0)` + `ac.getCarName()` for solo sessions
+
+2. **Crash Fixes**:
+   - Removed `ac.setWindowOpen('main', true)` calls
+   - Removed `ac.setWindowOpen('config', true)` calls
+
+3. **Queue System Implementation** (Added 18/11/2026):
+   - Implemented alert queuing system to prevent overlapping sounds during rapid chat messages
+   - Added `alertQueue` global table to store queued alerts
+   - Added `isPlayingAlert` flag to track if an alert is currently playing
+   - Set `alertQueueMaxSize` to 5 (configurable)
+   - Created `addToAlertQueue()`, `playNextQueuedAlert()`, `clearAlertQueue()` and `initAlertSystem()` functions
+   - Updated `ac.onChatMessage` to use queuing system instead of direct sound playback
+   - Added "Alert Queue" tab in the main settings window with UI controls for queue management
+
+4. **Functionality Preserved**:
+   - Keyword detection works in both solo and multiplayer modes
+   - Sound notifications function properly
+   - All UI elements remain accessible through alternative methods
+
+## Session Update (friends list, dev tools)
+
+- **Slider helper** (`sliders.withDefault`, table `sliders` near the top of the file): wraps `ui.slider`. Right-click on release (`ui.itemClicked(Right, true)`) restores the default, the label is yellow (`sliders.modifiedColor`) while `|value - default| > 0.0001`, and the wheel (`ui.mouseWheel`, only while hovered) moves by `step`. Defaults live in `sliders.defaults`, which is also used by the reset functions. `sliders.checkbox(label, value, default)` does the same for checkboxes (yellow `FrameBg` box, black `CheckMark`, yellow label while `value ~= default`) and returns true on click, like `ui.checkbox`. The "I understand and want to overwrite" confirmation is not a setting and keeps a plain `ui.checkbox`. Lua allows only 200 locals per chunk, so keep new settings in tables rather than new locals.
+- **Recent sounds** (`soundPicker.drawRecent`, block before `soundPicker.drawSelector`): `settings.recentSounds` stores base file names separated by `|`, most recent first, max 5 (`soundPicker.recentLimit`). `soundPicker.remember(fileName)` is called from `setSelectedSound`, so every picker feeds the list. The default sound is never stored. Durations come from `ac.AudioEvent.fromFile(...):getDuration()` and are cached in `soundPicker.durations`; a negative value means unavailable and the duration is hidden. `playAlertSound` is forward-declared near `currentSoundTestKey` for the preview button.
+- **Sound list by sub-folder** (`soundPicker.groupedSounds`, `soundPicker.drawSoundRow`): `drawFile` shows Recent Sounds, then the default entry, then one title per sub-folder (root first) with a row per sound. The folder dropdown was removed. Rows use `drawSoundRow`, which also sets the default focus on the selected sound.
+- **Used sounds** (`soundPicker.usedSounds`): mention, friend and keyword sound values, built in the keyword section and passed to `drawFile`, then `drawRecent` / `drawSoundRow`. Used rows are drawn with `ui.StyleColor.Text` in `soundPicker.usedColor()`: the `usedSound` entry of `debugColors` (yellow by default, stored in `settings.debugColorsData`) while Debug mode is on, otherwise the default yellow. The default entry is not coloured. In `drawSoundRow`, the row whose file is the alert's own sound (`selected`) uses `soundPicker.selectedColor()` (`selectedSound` entry, orange by default) instead, even if the file is used elsewhere.
+- **Debug colour panel** (`drawToolsTab`, block under `if settings.debugModeEnabled`): Player color, Friend color, Settings theme colours 1 and 2 (`drawColorSetting` / `drawThemeColorSetting`), Used sound and Selected sound (`drawDebugColorSetting`). They were removed from `drawDisplayTab` so there is one copy. The former "Color button backing" entry (`buttonBacking`) is removed. `drawColorButton` draws a 4 px checkerboard over the `buttonOverflow` area (`ui.drawRectFilled`) before `ui.colorButton`. `ui.beginDisabled` does not exist in the CSP SDK, so the block is hidden when Debug mode is off rather than greyed out.
+- **Sound dropdown height** (`soundPicker.drawSelector`): the combo uses `ComboFlags.NoPreview + ComboFlags.HeightLargest` (addition, because the flag bits do not overlap; LuaJIT has no `bit` operators) and `ui.setNextWindowSizeConstraints` (min width, max 480 px wide). `HeightLargest` lets the popup grow to the screen, so the list itself is a child window of height `soundPicker.listHeight()` = `soundPicker.listHeightRatio` (0.8) x `ac.getUI().windowSize.y`, which leaves a margin above and below. Change the ratio there. Not yet checked in game.
+- **Friends list** (`friendList`, Tools > Debug): `friendList.known` is saved to `ExtCfgState\lua\app\IsuChatAlertLua\Friends\friends.json` (JSON array of names). It is loaded at startup and a name is appended when a new tagged friend is seen in an online race. `friendList.names` holds the connected tagged friends, and `friendList.isFriend` still uses it, so message detection is unchanged. The Debug panel has a folder button and a reset button (reset clears the file, and friends connected at that moment are saved again on the next refresh). `friendList.refresh()` must declare `local sim = ac.getSim()` (a bare `sim` is a nil global there).
+- **Long messages in solo**: the first-scroll extension in `windowMain` no longer depends on `testMode`.
+- **Dev apps** (not part of the mod, both in `apps\lua\`):
+  - `FERNO-DEV`: Icons tab (filterable list of `ui.Icons`, click copies the name) and Info tab.
+  - `DEBUG-CAPTURE`: screenshot for AI-driven debugging.
+    - Keyword: `DEBUG-CAPTURE\request.txt` (created with `FERNOtest`, edited through the text field, not deleted after a capture)
+    - Triggers: "Capturer" button, or create an empty file `DEBUG-CAPTURE\capture.now` (the script deletes it once handled)
+    - Output: `shots\<yyyymmdd_hhmmss>_<keyword>.png` (`ac.makeSimpleScreenshot`, includes the HUD and CSP apps) and `.layout.txt` (`ac.getAppWindows()` positions and sizes, plus `sim_window_px`, `ui_scale`, `ui_window`)
+    - Folder button opens `shots\` with `os.openInExplorer`
+    - Crop a Windows screenshot with `tools\capture-screen.ps1 -App <name>` (`-Margin`, `-Rect`, `-Scale`, `-Process`)
+    - Validated in game: two captures at 1920×1080 with `ui_scale=1`, where layout coordinates equal screen pixels. The `pixels = position × sim.windowWidth / ui.windowSize.x` conversion is not yet checked at another UI scale.
+- **Tool note**: `create_file` can fail on `DEBUG-CAPTURE.lua` ("Could not get text view"). Workaround: write in `%TEMP%`, then `Move-Item -Force`.
+- **Version**: 2.8.2 (`appVersion` and `manifest.ini` `VERSION`). The default `backupName` (`isuchatalertversionv.2.8.1-5`) is only the default text of the Save field. Server backups are keyed by IP and port, not by this name, so it was left unchanged.
+- **Display panel background**: the solid blue background with red/green borders is the debug colour mode (`debugModeEnabled`, on by default). It is expected, not a bug.
+- **Open point (keep in memory)**: the DEBUG-CAPTURE position to pixel conversion (`pixels = position × sim.windowWidth / ui.windowSize.x`) is only validated at `ui_scale=1`. Next test: capture with another UI scale, then compare `.layout.txt` with the cropped PNG (`capture-screen.ps1 -App`).
+- **Test harness**: fengari scripts are in `%TEMP%\friends-test` (not in the project). `node test.js <path to isuChatAlertLua.lua>` compiles the whole mod and runs the friends logic tests against stubs.
