@@ -4,7 +4,6 @@
 *.code-workspace
 session-state/
 debug_log.txt
-Ska-error-bis.txt
 
 # Personal data created by the mod (friends, saves, server keyword lists)
 ServerSharedKeywords/

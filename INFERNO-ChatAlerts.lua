@@ -1,39 +1,20 @@
-﻿-- INFERNO-Chat Alerts - Assetto Corsa Chat Alert Script
--- ==================================================
---
--- FIX: Removed ac.getSessionID() call that was causing crashes
--- ----------------------------------------------------------
--- The original script used ac.getSessionID() which is not supported in the Assetto Corsa Lua environment.
--- This caused crashes when running the script in any mode.
---
--- SOLUTION:
--- - Replaced ac.getSessionID() with a robust fallback mechanism
--- - For online sessions (server mode): Uses server name or IP address for unique identification
--- - For offline sessions (solo mode): Creates unique identifier using driver name and track
---
--- FEATURES MAINTAINED:
--- - Server-specific keyword profiles
--- - Solo session tracking  
--- - All existing alert functionality
--- - Sound notifications
--- - Chat message parsing and filtering
--- - Backup/restore functionality
-
--- New features implemented:
--- 1. UI redesign for alert rows with controls and numbering
--- 2. Enhanced sound management with queueing system
--- 3. Alert queuing system to prevent sound overlap
+-- INFERNO-Chat Alerts - Assetto Corsa chat alert app (CSP Lua)
+-- ============================================================
+-- Shows a popup and plays a sound when a chat message matches a keyword,
+-- mentions the player or comes from a friend.
+-- Features: per-server and per-car profiles, settings backups, shared
+-- keyword lists, a sound queue for hidden alerts, friends list.
+-- See README.md and README_AI_NOTES.md for development notes.
 
 ac = ac
 
 local defaultAlertSoundFile = '00defaultALERT.wav'
 
--- The deploy script rewrites folderName and displayName for the INFERNO-DEV copy.
 -- Global on purpose: CSP gives each app its own Lua state, and this keeps the top-level local count at the 200 limit.
 App = {
   folderName = 'INFERNO-ChatAlerts',
   displayName = 'INFERNO-Chat Alerts',
-  migrateFrom = { 'INFERNO-ChatAlerts', 'isuChatAlertLua' },
+  migrateFrom = { 'isuChatAlertLua' },
 }
 App.stateFolder = ac.getFolder(ac.FolderID.ExtCfgState) .. '\\lua\\app\\' .. App.folderName
 

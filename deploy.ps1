@@ -15,7 +15,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $source = $PSScriptRoot
 $excludeDirs = @('.git', '.vs', 'session-state', 'ServerSharedKeywords')
-$excludeFiles = @('debug_log.txt', '*.code-workspace', 'Ska-error-bis.txt', '.gitignore', '.gitattributes', 'README.md', 'deploy.ps1')
+$excludeFiles = @('debug_log.txt', '*.code-workspace', '.gitignore', '.gitattributes', 'README.md', 'deploy.ps1')
 
 function Copy-ModFiles([string]$destination) {
 	New-Item -ItemType Directory -Force -Path $destination | Out-Null
