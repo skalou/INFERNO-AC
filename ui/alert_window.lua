@@ -150,29 +150,6 @@ local function drawAlert(message, isPreview, dt, showInteractionBackground)
 end
 
 local function windowMain(dt)
-  -- Draw settings icon in top-left corner (always visible) with click detection
-  local settingsIconPos = vec2(8, 8)
-  local settingsIconSize = 20
-  local settingsIconColor = rgbm(0.5, 0.5, 0.5, 0.7)
-
-  -- Draw the gear icon
-  ui.drawText('âš™', settingsIconPos, 1, settingsIconColor)
-
-  -- Check for click on gear icon
-  local mousePos = ui.mousePos()
-  local iconRect = {
-    x1 = settingsIconPos.x,
-    y1 = settingsIconPos.y,
-    x2 = settingsIconPos.x + settingsIconSize + 5,
-    y2 = settingsIconPos.y + settingsIconSize + 5
-  }
-  if mousePos.x >= iconRect.x1 and mousePos.x <= iconRect.x2 and
-     mousePos.y >= iconRect.y1 and mousePos.y <= iconRect.y2 then
-    if ui.mouseClicked() then
-      ac.setWindowOpen('config', true)
-    end
-  end
-
   if Alert.testMessagePending then
 	Alert.testMode = Alert.testMessagePending.mode
 	Alert.latestMessage = Alert.testMessagePending.message
