@@ -2,25 +2,35 @@
 
 ## Session Update (INFERNO-AC rename)
 
-- Mod renamed from "IsuChat Alert" to "INFERNO-AC". Release app: `INFERNO-ChatAlerts` (display name `INFERNO-Chat Alerts`). Dev app: `INFERNO-DEV`, a separate copy of `FERNO-DEV` (not built from this source).
+- Mod renamed from "IsuChat Alert" to "INFERNO-AC". Release app: `INFERNO-ChatAlerts` (display name `INFERNO-Chat Alerts`).
 - Source of truth is this repository (`Documents\Dev\INFERNO-AC`). The game folder only receives deployed copies.
-- Debug tools stay in the main app `INFERNO-ChatAlerts`. `INFERNO-DEV` is independent: it is never built from this source and must not depend on the mod code or its config window.
-- Identity lives in the global table `App` at the top of `INFERNO-ChatAlerts.lua` (`folderName`, `displayName`, `migrateFrom`). It is global, not local, because the main chunk is at LuaJIT's 200-local limit. Do not add top-level `local`s without checking the count (`luajit`/fengari reports "too many local variables").
-- `App.stateFolder` is `ExtCfgState\lua\app\<folderName>`. `migrateAppData()` copies the old settings `.ini` and the `Friends`, `Saves`, `SharedKeywords` folders once, and never overwrites.
+- CSP only detects Lua apps directly in `apps\lua\<AppName>\` (`manifest.ini` + `<AppName>.lua`). A grouping subfolder such as `apps\lua\INFERNO-AC\...` hides the apps.
+- `App.stateFolder` is `ExtCfgState\lua\app\<folderName>`. `migrateAppData()` (in `core/paths.lua`) copies the old settings `.ini` and the `Friends`, `Saves`, `SharedKeywords` folders once, and never overwrites.
 - Storage keys keep the `IsuChatAlertLua_` prefix, and `sharedKeywordFormat` keeps `IsuChatAlertServerKeywords`, so existing data and shared files stay compatible.
 - Window lookup matches the display name (`getAppWindow`, `getSettingsWindow`). If the manifest `NAME` changes, `displayName` must match it.
 - Sounds are not in the repository (copyright). Only `sounds\DefaultAppSounds\00defaultALERT.wav` is tracked.
-- Tests run outside the mod (fengari harnesses: friends, recent sounds, migration). Check in-game before release.
+- Check in-game before release.
+
+## Module layout (split from the single 3 900-line script)
+
+- `INFERNO-ChatAlerts.lua` is the entry point: it `require`s every module in load order, holds `script.update` / `script.reset` and the `ac.onChatMessage` hook, and assigns the manifest callbacks `windowMain`, `windowConfig`, `windowDev`.
+- `core/modules.lua` creates one empty table per module before anything loads. Each module fills its own table (`local Sounds = modules.sounds`) and reads the others from there, so modules can call each other without `require` cycles. Add a key there for a new module, and a `require` in the entry file.
+- Values that never change after load (functions, tables) are imported as locals at the top of each module: `local settings = modules.settings.settings`. This only works for modules loaded earlier; a module loaded later is called through its table at call time (`Profiles.syncKeywordProfile()`).
+- State that is reassigned and shared between modules lives on its owner's table, e.g. `Alert.alertTimeLeft`, `Profiles.profileStatus`, `Profiles.keywordProfiles`, `Sounds.alertSoundFileSet`. Never copy those into a local: the copy would go stale.
+- `core/`: `paths` (identity, folders, migration), `settings` (ac.storage), `debug`, `util`, `alert` (popup state), `history`, `sounds`, `keywords`, `friends`, `windows`, `profiles`, `backup`, `sharing`, `chat`. `ui/`: `widgets` (sliders, sound picker, colours; loaded early because core modules use `sliders.defaults`), the settings tabs, `config_window`, `alert_window`. `dev/icons.lua`: the INFERNO-DEV window.
+- INFERNO-DEV is now a window of this app (manifest `ID=dev`, `FUNCTION_MAIN=windowDev`, icon `icons/dev.png`). The separate `apps\lua\INFERNO-DEV` app is no longer used.
+- Each module has its own 200-local limit, so the old "main chunk is at 200 locals" constraint is gone. LuaJIT still limits a function to 60 upvalues.
+- Verification used for the split (tools kept outside the repo, in `%TEMP%\inferno-split`): `luajit` (winget `DEVCOM.LuaJIT`) compiles every file; a luaparse scope checker reports unknown globals and upvalue counts; `harness.lua` runs the app against deterministic CSP stubs (chat messages, windows, "click every button") and its trace was identical for the old single file and the split modules.
 
 ## Historical fixes (pre-rename, kept for context)
 
 - `ac.getSessionID()` does not exist in the CSP Lua environment and used to crash the app. `getServerName()` now identifies the session: server name, else server IP, else `Solo_<driver>_<track>` for offline sessions.
-- The `ac.setWindowOpen('main'/'config', true)` calls crashed and were removed.
+- Older notes say the `ac.setWindowOpen('main'/'config', true)` calls crashed and were removed. The code still calls them (test previews in `ui/display_tab.lua`, gear icon in `ui/alert_window.lua`).
 - Sound queueing: the only queue in the code is `hiddenSoundQueue` (sounds of hidden keyword alerts, max 5, a full queue drops new sounds). Older notes described an `alertQueue` system with `addToAlertQueue()`/`initAlertSystem()` and an "Alert Queue" settings tab: none of that exists in the code and those notes were removed.
 
 ## Session Update (friends list, dev tools)
 
-- **Slider helper** (`sliders.withDefault`, table `sliders` near the top of the file): wraps `ui.slider`. Right-click on release (`ui.itemClicked(Right, true)`) restores the default, the label is yellow (`sliders.modifiedColor`) while `|value - default| > 0.0001`, and the wheel (`ui.mouseWheel`, only while hovered) moves by `step`. Defaults live in `sliders.defaults`, which is also used by the reset functions. `sliders.checkbox(label, value, default)` does the same for checkboxes (yellow `FrameBg` box, black `CheckMark`, yellow label while `value ~= default`) and returns true on click, like `ui.checkbox`. The "I understand and want to overwrite" confirmation is not a setting and keeps a plain `ui.checkbox`. Lua allows only 200 locals per chunk, so keep new settings in tables rather than new locals.
+- **Slider helper** (`sliders.withDefault`, table `sliders` in `ui/widgets.lua`): wraps `ui.slider`. Right-click on release (`ui.itemClicked(Right, true)`) restores the default, the label is yellow (`sliders.modifiedColor`) while `|value - default| > 0.0001`, and the wheel (`ui.mouseWheel`, only while hovered) moves by `step`. Defaults live in `sliders.defaults`, which is also used by the reset functions. `sliders.checkbox(label, value, default)` does the same for checkboxes (yellow `FrameBg` box, black `CheckMark`, yellow label while `value ~= default`) and returns true on click, like `ui.checkbox`. The "I understand and want to overwrite" confirmation is not a setting and keeps a plain `ui.checkbox`.
 - **Recent sounds** (`soundPicker.drawRecent`, block before `soundPicker.drawSelector`): `settings.recentSounds` stores base file names separated by `|`, most recent first, max 5 (`soundPicker.recentLimit`). `soundPicker.remember(fileName)` is called from `setSelectedSound`, so every picker feeds the list. The default sound is never stored. Durations come from `ac.AudioEvent.fromFile(...):getDuration()` and are cached in `soundPicker.durations`; a negative value means unavailable and the duration is hidden. `playAlertSound` is forward-declared near `currentSoundTestKey` for the preview button.
 - **Sound list by sub-folder** (`soundPicker.groupedSounds`, `soundPicker.drawSoundRow`): `drawFile` shows Recent Sounds, then the default entry, then one title per sub-folder (root first) with a row per sound. The folder dropdown was removed. Rows use `drawSoundRow`, which also sets the default focus on the selected sound.
 - **Used sounds** (`soundPicker.usedSounds`): mention, friend and keyword sound values, built in the keyword section and passed to `drawFile`, then `drawRecent` / `drawSoundRow`. Used rows are drawn with `ui.StyleColor.Text` in `soundPicker.usedColor()`: the `usedSound` entry of `debugColors` (yellow by default, stored in `settings.debugColorsData`) while Debug mode is on, otherwise the default yellow. The default entry is not coloured. In `drawSoundRow`, the row whose file is the alert's own sound (`selected`) uses `soundPicker.selectedColor()` (`selectedSound` entry, orange by default) instead, even if the file is used elsewhere.
@@ -41,4 +51,4 @@
 - **Version**: 2.8.2 (`appVersion` and `manifest.ini` `VERSION`). The default `backupName` (`isuchatalertversionv.2.8.1-5`) is only the default text of the Save field. Server backups are keyed by IP and port, not by this name, so it was left unchanged.
 - **Display panel background**: the solid blue background with red/green borders is the debug colour mode (`debugModeEnabled`, on by default). It is expected, not a bug.
 - **Open point (keep in memory)**: the DEBUG-CAPTURE position to pixel conversion (`pixels = position × sim.windowWidth / ui.windowSize.x`) is only validated at `ui_scale=1`. Next test: capture with another UI scale, then compare `.layout.txt` with the cropped PNG (`capture-screen.ps1 -App`).
-- **Test harness**: fengari scripts are in `%TEMP%\friends-test` (not in the project). `node test.js <path to INFERNO-ChatAlerts.lua>` compiles the whole mod and runs the friends logic tests against stubs.
+- **Test harness**: the old fengari scripts in `%TEMP%\friends-test` load the single-file mod and no longer apply to the module layout. Use the LuaJIT harness described under "Module layout".

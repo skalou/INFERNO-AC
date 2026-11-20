@@ -3,7 +3,7 @@
 Chat keyword alerts for Assetto Corsa (Custom Shaders Patch apps).
 
 - **INFERNO-Chat Alerts**: the release app. Plays a sound and shows an alert when a chat message matches your keywords, friends or muted keywords.
-- **INFERNO-DEV**: a separate developer app, a copy of FERNO-DEV (icon browser). It is not built from this repository.
+- **INFERNO-DEV**: a developer window of the same app (icon browser). Enable it from the CSP apps list like the other windows.
 
 ## Install
 
@@ -27,7 +27,10 @@ Sound files are not published here: most are copyrighted extracts. Put your own 
 
 ## Repository layout
 
-- `INFERNO-ChatAlerts.lua`: the mod script (source of truth for both apps).
+- `INFERNO-ChatAlerts.lua`: entry point. Loads the modules and connects them to CSP.
+- `core\`: logic (settings, keywords, sounds, chat handling, profiles, backups, sharing).
+- `ui\`: windows and settings tabs.
+- `dev\`: the INFERNO-DEV window.
 - `manifest.ini`: CSP app and window definitions.
 - `deploy.ps1`: deployment to the Assetto Corsa apps folder.
 - `icons\`, `icon.png`, `Damier1.png`: UI assets.

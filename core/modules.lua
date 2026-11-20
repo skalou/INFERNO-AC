@@ -1,0 +1,27 @@
+-- One table per module, created before any module loads. Each module fills its own table and reads the
+-- others from here, so modules can call each other without require() cycles. Load order: INFERNO-ChatAlerts.lua.
+return {
+  paths = {},
+  settings = {},
+  debug = {},
+  util = {},
+  alert = {},
+  history = {},
+  sounds = {},
+  widgets = {},
+  keywords = {},
+  friends = {},
+  windows = {},
+  profiles = {},
+  backup = {},
+  sharing = {},
+  chat = {},
+  alertsTab = {},
+  displayTab = {},
+  profilesTab = {},
+  historyTab = {},
+  toolsTab = {},
+  configWindow = {},
+  alertWindow = {},
+  dev = {},
+}
