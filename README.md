@@ -17,9 +17,17 @@ powershell -ExecutionPolicy Bypass -File .\deploy.ps1
 
 Use `-AppsFolder` to target another `apps\lua` folder.
 
-## Migrating from IsuChat Alert
+## Data from IsuChat Alert
 
-Earlier versions lived in `apps\lua\isuChatAlertLua`. On first start, INFERNO-Chat Alerts copies the settings file and the `Friends`, `Saves` and `SharedKeywords` folders from `Documents\Assetto Corsa\cfg\extension\state\lua\app\` into the new location. It never overwrites existing data, and the old files are left in place. Disable the old app in Custom Shaders Patch to avoid two alerts.
+Version 0.4.0 starts from scratch: it does not read the settings, backups or shared keyword lists of IsuChat Alert (`apps\lua\isuChatAlertLua`) or of earlier INFERNO test builds. Disable the old app in Custom Shaders Patch to avoid two alerts. To bring keywords over, write them in a `.txt` file (one keyword per line) in `apps\lua\INFERNO-ChatAlerts\ServerSharedKeywords\` (in the game folder) and use **Profiles > Keyword list from a saved server**.
+
+## Tests
+
+`tools\run-tests.ps1` runs a static check, compiles every file with LuaJIT and runs the app against stubbed CSP functions. One-time setup: install Node.js and LuaJIT (`winget install DEVCOM.LuaJIT`), then run `npm install` in `tools\`.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run-tests.ps1
+```
 
 ## Sounds
 
@@ -31,6 +39,7 @@ Sound files are not published here: most are copyrighted extracts. Put your own 
 - `core\`: logic (settings, keywords, sounds, chat handling, profiles, backups, sharing).
 - `ui\`: windows and settings tabs.
 - `dev\`: the INFERNO-DEV window.
+- `tools\`: test tools (not deployed).
 - `manifest.ini`: CSP app and window definitions.
 - `deploy.ps1`: deployment to the Assetto Corsa apps folder.
 - `icons\`, `icon.png`, `Damier1.png`: UI assets.

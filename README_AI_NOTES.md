@@ -1,25 +1,34 @@
 # AI Conversation Notes
 
-## Changelog draft: 0.3.0 (beta, not released yet)
+## Changelog draft: 0.4.0-beta (not released yet)
 
-First INFERNO-AC version. The version number restarts at 0.3.0 (beta) after the rename from IsuChat Alert 2.8.2.
+First INFERNO-AC release, after IsuChat Alert 2.8.2 (0.3.0 was planned but never released). It starts from scratch: no data from IsuChat Alert or earlier test builds is read.
 
-- Renamed IsuChat Alert to INFERNO-Chat Alerts (`apps\lua\INFERNO-ChatAlerts`). Settings, friends, saves and shared keyword lists are copied once from `isuChatAlertLua`; old files are kept.
-- Code split from one 3 900-line script into `core/`, `ui/` and `dev/` modules. No behaviour change (verified with LuaJIT and a stubbed CSP run).
+- Renamed IsuChat Alert to INFERNO-Chat Alerts (`apps\lua\INFERNO-ChatAlerts`), author INFERNO-SKA. Version shown as `0.4.0-beta` in Tools > Debug.
+- No compatibility with old data: settings use a new storage prefix (`INFERNO_`), and old backups and shared keyword files are rejected with a message. Keywords can be brought over through a `.txt` list (one keyword per line).
+- New file formats: settings backups `INFERNO-Settings` v2, shared keyword lists `INFERNO-KeywordList` v1. A file is read only if its format id and version match exactly.
+- No default keywords: a new install or a keyword reset starts with only the built-in "your name" and "friends" entries. Default backup name: `My settings`.
+- Code split from one 3 900-line script into `core/`, `ui/` and `dev/` modules.
 - INFERNO-DEV (icon browser) is now a window of the app instead of a separate app.
 - Fixed: debug log spam. Validating a keyword profile wrote one `[TRACE]` line to `debug_log.txt` per character while debug mode was on.
-- Checked: `ac.setWindowOpen` is a valid CSP function. Its call in the test preview (opens the alert window) is kept.
 - Removed: the gear icon in the top-left corner of the alert window. It never worked: it showed `âš™` (double-encoded UTF-8, wrong `ui.drawText` arguments), and its click test compared screen coordinates (`ui.mousePos`) with a window-local rectangle. Open the settings from the CSP apps bar.
-- Removed outdated development notes (`FINAL_PROJECT_STATUS.md`, `PROJECT_SUMMARY.md`, `IMPLEMENTATION_NOTES.md`, `FIX_SUMMARY.md`); `deploy.ps1` no longer copies `.md` files to the game.
-- Version strings to update at release: `manifest.ini` `VERSION` and `appVersion` in `core/paths.lua`. Caution: `appVersion` is written into backups, and `validateBackupVersion` rejects backups from a newer version, so going from 2.8.2 to 0.3.0 would reject every existing backup unless the backup check is changed.
+- Checked: `ac.setWindowOpen` is a valid CSP function. Its call in the test preview (opens the alert window) is kept.
+- Test tools added in `tools\` (static check, LuaJIT harness with CSP stubs and targeted checks).
+
+## File formats (0.4.0)
+
+- Versions live in `core/paths.lua`: `App.version` (`0.4.0`, written into files), `App.channel` (`beta`), `App.versionLabel`. Update `manifest.ini` `VERSION` together with `App.version`.
+- Settings backup (`Saves\<name>.json`, server auto-save `Saves\Servers\<ip>_<port>.json`): JSON envelope `{ format = 'INFERNO-Settings', formatVersion = 2, appVersion, payload, checksum }`, built by `encodeBackup()` and read by `decodeBackupData()` in `core/backup.lua`. `payload` is the JSON snapshot from `captureAllSettings()`; server files leave out the keys in `serverBackupExcludedKeys`.
+- Shared keyword list (`SharedKeywords\*.json`, `ServerSharedKeywords\*.json`): envelope `{ format = 'INFERNO-KeywordList', formatVersion = 1, appVersion, payload, checksum }` (`core/sharing.lua`). `.txt` lists (one keyword per line) are also accepted.
+- Rule: a file is read only if `format` and `formatVersion` match exactly; nothing is converted. When a format changes, bump its version and decide explicitly whether to read the previous one. The app version is informational only and is never compared.
+- Keyword list in settings and profiles: `keywordRows` = `'v1:'` + `'=<encoded keyword>'` entries separated by `;`. Default: `settings.defaultKeywordRows` (`'v1:'`, empty).
 
 ## Session Update (INFERNO-AC rename)
 
 - Mod renamed from "IsuChat Alert" to "INFERNO-AC". Release app: `INFERNO-ChatAlerts` (display name `INFERNO-Chat Alerts`).
 - Source of truth is this repository (`Documents\Dev\INFERNO-AC`). The game folder only receives deployed copies.
 - CSP only detects Lua apps directly in `apps\lua\<AppName>\` (`manifest.ini` + `<AppName>.lua`). A grouping subfolder such as `apps\lua\INFERNO-AC\...` hides the apps.
-- `App.stateFolder` is `ExtCfgState\lua\app\<folderName>`. `migrateAppData()` (in `core/paths.lua`) copies the old settings `.ini` and the `Friends`, `Saves`, `SharedKeywords` folders once, and never overwrites.
-- Storage keys keep the `IsuChatAlertLua_` prefix, and `sharedKeywordFormat` keeps `IsuChatAlertServerKeywords`, so existing data and shared files stay compatible.
+- `App.stateFolder` is `ExtCfgState\lua\app\<folderName>` (`Saves`, `SharedKeywords`, `Friends`). Settings (`ac.storage`) use the key prefix `INFERNO_`. Since 0.4.0 nothing is migrated from `isuChatAlertLua`.
 - Window lookup matches the display name (`getAppWindow`, `getSettingsWindow`). If the manifest `NAME` changes, `displayName` must match it.
 - Sounds are not in the repository (copyright). Only `sounds\DefaultAppSounds\00defaultALERT.wav` is tracked.
 - Check in-game before release.
@@ -30,15 +39,15 @@ First INFERNO-AC version. The version number restarts at 0.3.0 (beta) after the 
 - `core/modules.lua` creates one empty table per module before anything loads. Each module fills its own table (`local Sounds = modules.sounds`) and reads the others from there, so modules can call each other without `require` cycles. Add a key there for a new module, and a `require` in the entry file.
 - Values that never change after load (functions, tables) are imported as locals at the top of each module: `local settings = modules.settings.settings`. This only works for modules loaded earlier; a module loaded later is called through its table at call time (`Profiles.syncKeywordProfile()`).
 - State that is reassigned and shared between modules lives on its owner's table, e.g. `Alert.alertTimeLeft`, `Profiles.profileStatus`, `Profiles.keywordProfiles`, `Sounds.alertSoundFileSet`. Never copy those into a local: the copy would go stale.
-- `core/`: `paths` (identity, folders, migration), `settings` (ac.storage), `debug`, `util`, `alert` (popup state), `history`, `sounds`, `keywords`, `friends`, `windows`, `profiles`, `backup`, `sharing`, `chat`. `ui/`: `widgets` (sliders, sound picker, colours; loaded early because core modules use `sliders.defaults`), the settings tabs, `config_window`, `alert_window`. `dev/icons.lua`: the INFERNO-DEV window.
+- `core/`: `paths` (identity, version, folders, file formats), `settings` (ac.storage), `debug`, `util`, `alert` (popup state), `history`, `sounds`, `keywords`, `friends`, `windows`, `profiles`, `backup`, `sharing`, `chat`. `ui/`: `widgets` (sliders, sound picker, colours; loaded early because core modules use `sliders.defaults`), the settings tabs, `config_window`, `alert_window`. `dev/icons.lua`: the INFERNO-DEV window.
 - INFERNO-DEV is now a window of this app (manifest `ID=dev`, `FUNCTION_MAIN=windowDev`, icon `icons/dev.png`). The separate `apps\lua\INFERNO-DEV` app is no longer used.
 - Each module has its own 200-local limit, so the old "main chunk is at 200 locals" constraint is gone. LuaJIT still limits a function to 60 upvalues.
-- Verification used for the split (tools kept outside the repo, in `%TEMP%\inferno-split`): `luajit` (winget `DEVCOM.LuaJIT`) compiles every file; a luaparse scope checker reports unknown globals and upvalue counts; `harness.lua` runs the app against deterministic CSP stubs (chat messages, windows, "click every button") and its trace was identical for the old single file and the split modules.
+- Tests: `tools\run-tests.ps1` (see README). `tools\check.js` (luaparse) reports unknown globals, e.g. a local that lost its import, and upvalue counts; LuaJIT (winget `DEVCOM.LuaJIT`) compiles every file; `tools\harness.lua` runs the app against deterministic CSP stubs (chat messages, windows, a "click every button" pass), then the targeted checks listed at the end of the file. Add a check for each behaviour change, and run it once against the previous commit (`git worktree add`) to be sure it fails there. The module split itself was verified by an identical harness trace for the old single file and the modules.
 
 ## Historical fixes (pre-rename, kept for context)
 
 - `ac.getSessionID()` does not exist in the CSP Lua environment and used to crash the app. `getServerName()` now identifies the session: server name, else server IP, else `Solo_<driver>_<track>` for offline sessions.
-- Older notes said the `ac.setWindowOpen('main'/'config', true)` calls crashed and were removed. Checked against the CSP SDK shipped with the game (`extension\internal\lua-sdk\ac_apps\lib.lua`): `ac.setWindowOpen(windowID, opened)` exists and opens a window by its manifest `ID`. The calls are correct; the one in the test preview (`ui/display_tab.lua`) is kept, the gear icon that used the other one was removed in 0.3.0. The SDK repository on GitHub is incomplete (it also lacks `ac.getAppWindows`), so check the installed SDK first.
+- Older notes said the `ac.setWindowOpen('main'/'config', true)` calls crashed and were removed. Checked against the CSP SDK shipped with the game (`extension\internal\lua-sdk\ac_apps\lib.lua`): `ac.setWindowOpen(windowID, opened)` exists and opens a window by its manifest `ID`. The calls are correct; the one in the test preview (`ui/display_tab.lua`) is kept, the gear icon that used the other one was removed in 0.4.0. The SDK repository on GitHub is incomplete (it also lacks `ac.getAppWindows`), so check the installed SDK first.
 - Sound queueing: the only queue in the code is `hiddenSoundQueue` (sounds of hidden keyword alerts, max 5, a full queue drops new sounds). Older notes described an `alertQueue` system with `addToAlertQueue()`/`initAlertSystem()` and an "Alert Queue" settings tab: none of that exists in the code and those notes were removed.
 
 ## Session Update (friends list, dev tools)
@@ -61,7 +70,7 @@ First INFERNO-AC version. The version number restarts at 0.3.0 (beta) after the 
     - Crop a Windows screenshot with `tools\capture-screen.ps1 -App <name>` (`-Margin`, `-Rect`, `-Scale`, `-Process`)
     - Validated in game: two captures at 1920×1080 with `ui_scale=1`, where layout coordinates equal screen pixels. The `pixels = position × sim.windowWidth / ui.windowSize.x` conversion is not yet checked at another UI scale.
 - **Tool note**: `create_file` can fail on `DEBUG-CAPTURE.lua` ("Could not get text view"). Workaround: write in `%TEMP%`, then `Move-Item -Force`.
-- **Version**: 2.8.2 (`appVersion` and `manifest.ini` `VERSION`). The default `backupName` (`isuchatalertversionv.2.8.1-5`) is only the default text of the Save field. Server backups are keyed by IP and port, not by this name, so it was left unchanged.
+- **Version**: see "File formats (0.4.0)" at the top. The default `backupName` (`My settings`) is only the default text of the Save field. Server backups are keyed by IP and port, not by this name.
 - **Display panel background**: the solid blue background with red/green borders is the debug colour mode (`debugModeEnabled`, on by default). It is expected, not a bug.
 - **Open point (keep in memory)**: the DEBUG-CAPTURE position to pixel conversion (`pixels = position × sim.windowWidth / ui.windowSize.x`) is only validated at `ui_scale=1`. Next test: capture with another UI scale, then compare `.layout.txt` with the cropped PNG (`capture-screen.ps1 -App`).
 - **Test harness**: the old fengari scripts in `%TEMP%\friends-test` load the single-file mod and no longer apply to the module layout. Use the LuaJIT harness described under "Module layout".
