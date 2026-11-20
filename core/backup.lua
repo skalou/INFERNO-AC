@@ -8,9 +8,11 @@ local defaultAlertSoundFile = modules.paths.defaultAlertSoundFile
 local App = modules.paths.App
 local backupFolder = modules.paths.backupFolder
 local appVersion = modules.paths.appVersion
+local backupFormat = modules.paths.backupFormat
 local backupFormatVersion = modules.paths.backupFormatVersion
 local maximumBackupSize = modules.paths.maximumBackupSize
 local settings = modules.settings.settings
+local defaultKeywordRows = modules.settings.defaultKeywordRows
 local maxOutlineScale = modules.settings.maxOutlineScale
 local unpackStoredTable = modules.util.unpackStoredTable
 local packColor = modules.util.packColor
@@ -68,8 +70,7 @@ local function resetKeywordSettings()
     Profiles.keywordProfiles[Profiles.activeKeywordProfileKey] = nil
     settings.keywordProfiles = stringify(Profiles.keywordProfiles, true)
   end
-  settings.keywords = 'ric,convoy,skalou'
-  settings.keywordRows = 'v1:=ric;=convoy;=skalou'
+  settings.keywordRows = defaultKeywordRows
   settings.keywordSoundAssignments = ''
   settings.mutedKeywords = ''
   settings.keywordOptions = ''
@@ -82,7 +83,6 @@ end
 
 local function captureAllSettings()
   local profile = {
-	keywords = settings.keywords,
 	keywordRows = settings.keywordRows,
 	mentionMe = settings.mentionMe,
 	mentionSoundMuted = settings.mentionSoundMuted,
@@ -132,53 +132,45 @@ local function captureAllSettings()
   return profile
 end
 
+-- Validates a settings snapshot (validateOnly) or applies it. Full backups carry every field; server backups
+-- leave out the keyword and profile fields listed in serverBackupExcludedKeys, so those stay optional.
 local function applyAllSettings(profile, validateOnly)
   if type(profile) ~= 'table' then return false end
   local colors = {
 	themeColor = unpackColor(profile.themeColor),
-		themeBgColor = unpackColor(profile.themeBgColor),
+	themeBgColor = unpackColor(profile.themeBgColor),
 	textColor = unpackColor(profile.textColor),
 	authorColor = unpackColor(profile.authorColor),
-	playerColor = unpackColor(profile.playerColor) or settings.playerColor,
-	friendColor = unpackColor(profile.friendColor) or settings.friendColor,
+	playerColor = unpackColor(profile.playerColor),
+	friendColor = unpackColor(profile.friendColor),
 	outlineColor = unpackColor(profile.outlineColor),
 	backgroundColor = unpackColor(profile.backgroundColor),
 	accentColor = unpackColor(profile.accentColor)
   }
-	if not colors.themeColor then colors.themeColor = settings.themeColor end
-		if not colors.themeBgColor then colors.themeBgColor = settings.themeBgColor end
   for key, color in pairs(colors) do
 	if not color then return false end
   end
-	for _, key in ipairs({ 'mentionSound' }) do
+  for _, key in ipairs({ 'mentionSound', 'friendSound' }) do
 	if type(profile[key]) ~= 'string' then return false end
   end
-  for _, key in ipairs({ 'mentionMe', 'mentionSoundMuted', 'showAllChatMessages', 'soundEnabled', 'hideWhenNotHovered', 'backgroundEnabled', 'softOutline', 'useVehicleDisplayProfiles' }) do
+  for _, key in ipairs({ 'mentionMe', 'mentionSoundMuted', 'friendSoundMuted', 'showAllChatMessages', 'soundEnabled', 'hideWhenNotHovered', 'backgroundEnabled', 'softOutline', 'useVehicleDisplayProfiles', 'settingsWindowPositionSaved' }) do
 	if type(profile[key]) ~= 'boolean' then return false end
   end
-	for _, key in ipairs({ 'textSize', 'duration', 'opacity', 'outlineThicknessPercent' }) do
+  for _, key in ipairs({ 'textSize', 'duration', 'opacity', 'outlineThicknessPercent', 'settingsWindowHeightPercent', 'settingsWindowOffsetX', 'settingsWindowOffsetY', 'settingsWindowAbsoluteX', 'settingsWindowAbsoluteY' }) do
 	if not isFiniteNumber(profile[key]) then return false end
   end
   if profile.textSize < 8 or profile.textSize > 96
 	  or profile.duration < 1 or profile.duration > 10
 	  or profile.opacity < 0 or profile.opacity > 100
 	  or profile.outlineThicknessPercent < 0
-	  or profile.outlineThicknessPercent > maxOutlineScale * 100 / 8 then
+	  or profile.outlineThicknessPercent > maxOutlineScale * 100 / 8
+	  or profile.settingsWindowHeightPercent < 25 or profile.settingsWindowHeightPercent > 100 then
 	return false
   end
-  for _, key in ipairs({ 'vehicleDisplayProfiles', 'keywordProfiles', 'keywordProfileFallback', 'keywords', 'keywordRows', 'keywordSoundAssignments', 'mutedKeywords', 'keywordOptions', 'friendSound' }) do
+  for _, key in ipairs({ 'vehicleDisplayProfiles', 'keywordProfiles', 'keywordProfileFallback', 'keywordRows', 'keywordSoundAssignments', 'mutedKeywords', 'keywordOptions' }) do
 	if profile[key] ~= nil and type(profile[key]) ~= 'string' then return false end
   end
-  for _, key in ipairs({ 'settingsWindowPositionSaved', 'useServerKeywordProfiles', 'friendSoundMuted' }) do
-	if profile[key] ~= nil and type(profile[key]) ~= 'boolean' then return false end
-  end
-  if profile.settingsWindowHeightPercent ~= nil and (not isFiniteNumber(profile.settingsWindowHeightPercent)
-	  or profile.settingsWindowHeightPercent < 25 or profile.settingsWindowHeightPercent > 100) then
-	return false
-  end
-	for _, key in ipairs({ 'settingsWindowOffsetX', 'settingsWindowOffsetY', 'settingsWindowAbsoluteX', 'settingsWindowAbsoluteY' }) do
-	if profile[key] ~= nil and not isFiniteNumber(profile[key]) then return false end
-  end
+  if profile.useServerKeywordProfiles ~= nil and type(profile.useServerKeywordProfiles) ~= 'boolean' then return false end
   for _, key in ipairs({ 'mainWindowPosition', 'mainWindowSize' }) do
 	local value = profile[key]
 	if value ~= nil and (type(value) ~= 'table' or not isFiniteNumber(value[1]) or not isFiniteNumber(value[2])) then
@@ -210,28 +202,13 @@ local function applyAllSettings(profile, validateOnly)
   end
   if profile.keywordProfiles then
 	Profiles.keywordProfiles = unpackStoredTable(profile.keywordProfiles, 'keyword profiles')
-	for profileKey in pairs(Profiles.keywordProfiles) do
-	  if type(profileKey) == 'string' and profileKey:match('^mode:') then
-		Profiles.keywordProfiles[profileKey] = nil
-	  end
-	end
 	settings.keywordProfiles = stringify(Profiles.keywordProfiles, true)
-  end
-  if profile.keywordProfileFallback == nil and profile.keywords ~= nil then
-	settings.keywordProfileFallback = profile.useServerKeywordProfiles and stringify({
-	  keywords = profile.keywords,
-	  keywordRows = profile.keywordRows,
-	  keywordSoundAssignments = profile.keywordSoundAssignments,
-	  mutedKeywords = profile.mutedKeywords,
-		  keywordOptions = profile.keywordOptions
-	}, true) or ''
   end
   return true
 end
 
 local defaultSettingsProfile = {
-  keywords = 'ric,convoy,skalou',
-  keywordRows = 'v1:=ric;=convoy;=skalou',
+  keywordRows = defaultKeywordRows,
   mentionMe = true,
   mentionSoundMuted = false,
   showAllChatMessages = false,
@@ -335,57 +312,39 @@ local function makeBackupChecksum(version, formatVersion, payload)
   return ok and type(digest) == 'string' and digest or nil
 end
 
-local function parseBackupVersion(version)
-  if type(version) ~= 'string' or #version > 32 then return nil end
-  local major, minor, patch = version:match('^(%d+)%.(%d+)%.(%d+)$')
-  if not major then return nil end
-  return { tonumber(major), tonumber(minor), tonumber(patch) }
+-- Envelope written around a settings snapshot. Only this exact format id and version are read back.
+local function encodeBackup(snapshot)
+  local payload = JSON.stringify(snapshot)
+  local checksum = type(payload) == 'string' and makeBackupChecksum(appVersion, backupFormatVersion, payload) or nil
+  local data = checksum and JSON.stringify({
+	format = backupFormat,
+	formatVersion = backupFormatVersion,
+	appVersion = appVersion,
+	payload = payload,
+	checksum = checksum
+  }) or nil
+  if type(data) ~= 'string' or #data > maximumBackupSize then return nil end
+  return data
 end
 
-local function validateBackupVersion(profile)
-  if profile.appVersion == nil and profile.backupFormatVersion == nil then
-	return true, 'Legacy backup loaded successfully.'
-  end
-  if type(profile.appVersion) ~= 'string' or profile.backupFormatVersion ~= backupFormatVersion then
-	return false, 'Unsupported backup version or format.'
-  end
-  local savedVersion = parseBackupVersion(profile.appVersion)
-  local currentVersion = parseBackupVersion(appVersion)
-  if not savedVersion or not currentVersion then return false, 'Backup contains an invalid app version.' end
-  for index = 1, 3 do
-	if savedVersion[index] > currentVersion[index] then
-	  return false, 'This backup was created by a newer app version (' .. profile.appVersion .. ').'
-	elseif savedVersion[index] < currentVersion[index] then
-	  return true, 'Older app version ' .. profile.appVersion .. ' backup loaded successfully.'
-	end
-  end
-  return true, nil
-end
-
+-- Returns the settings snapshot and the app version that wrote it, or nil and an error message.
 local function decodeBackupData(data)
-  local parsedOk, parsed = pcall(JSON.parse, data)
-  if not parsedOk or type(parsed) ~= 'table' or (parsed.payload == nil and parsed.checksum == nil) then
-	local legacy = stringify.tryParse(data, nil, nil)
-	if type(legacy) ~= 'table' then return nil, 'Backup is not a valid settings file.' end
-	if legacy.appVersion ~= nil or legacy.backupFormatVersion ~= nil then
-	  return nil, 'Versioned backup is missing its integrity envelope.'
-	end
-	return legacy
+  local parsedOk, envelope = pcall(JSON.parse, data)
+  if not parsedOk or type(envelope) ~= 'table' or envelope.format ~= backupFormat
+	  or envelope.formatVersion ~= backupFormatVersion then
+	return nil, 'Not an INFERNO ' .. appVersion .. ' settings backup (IsuChat Alert and older backups are not supported).'
   end
-  if type(parsed.appVersion) ~= 'string' or type(parsed.backupFormatVersion) ~= 'number'
-	  or type(parsed.payload) ~= 'string' or #parsed.payload == 0
-	  or #parsed.payload > maximumBackupSize or type(parsed.checksum) ~= 'string' then
+  if type(envelope.appVersion) ~= 'string' or type(envelope.payload) ~= 'string' or #envelope.payload == 0
+	  or #envelope.payload > maximumBackupSize or type(envelope.checksum) ~= 'string' then
 	return nil, 'Backup integrity metadata is invalid.'
   end
-  local expectedChecksum = makeBackupChecksum(parsed.appVersion, parsed.backupFormatVersion, parsed.payload)
-  if not expectedChecksum or expectedChecksum ~= parsed.checksum then
+  local expectedChecksum = makeBackupChecksum(envelope.appVersion, envelope.formatVersion, envelope.payload)
+  if not expectedChecksum or expectedChecksum ~= envelope.checksum then
 	return nil, 'Backup integrity check failed; the file may be damaged.'
   end
-  local payloadOk, profile = pcall(JSON.parse, parsed.payload)
+  local payloadOk, profile = pcall(JSON.parse, envelope.payload)
   if not payloadOk or type(profile) ~= 'table' then return nil, 'Backup payload is damaged or invalid.' end
-  profile.appVersion = parsed.appVersion
-  profile.backupFormatVersion = parsed.backupFormatVersion
-  return profile
+  return profile, envelope.appVersion
 end
 
 -- Function to get a unique server identifier for session tracking
@@ -443,7 +402,6 @@ end
 
 -- Keyword and per-context profile data stay in their own profile maps, so a server file never carries them.
 local serverBackupExcludedKeys = {
-  keywords = true,
   keywordRows = true,
   keywordSoundAssignments = true,
   mutedKeywords = true,
@@ -476,16 +434,8 @@ local function saveServerBackup(serverName, onlyIfChanged)
     return false
   end
 
-  local payload = JSON.stringify(snapshot)
-  local checksum = type(payload) == 'string' and makeBackupChecksum(appVersion, backupFormatVersion, payload) or nil
-  local data = checksum and JSON.stringify({
-    appVersion = appVersion,
-    backupFormatVersion = backupFormatVersion,
-    payload = payload,
-    checksum = checksum
-  }) or nil
-
-  if type(data) ~= 'string' or #data > maximumBackupSize then
+  local data = encodeBackup(snapshot)
+  if not data then
     Profiles.profileStatus = 'Server backup could not be prepared or exceeds the size limit.'
     return false
   end
@@ -516,12 +466,6 @@ local function loadServerBackup(serverName)
   local serverKey = (serverAddress and serverAddress ~= '') and (serverAddress .. '_' .. tostring(ac.getServerPortTCP())) or serverName
   local filePath = backupFilePath(serverKey, true)
   if not filePath or not io.fileExists(filePath) then
-    filePath = backupFilePath(serverName, true)
-  end
-  if not filePath or not io.fileExists(filePath) then
-    filePath = backupFilePath(serverName)
-  end
-  if not filePath or not io.fileExists(filePath) then
     Profiles.profileStatus = 'No saved settings found for this server.'
     return false
   end
@@ -540,11 +484,6 @@ local function loadServerBackup(serverName)
 
   for key in pairs(serverBackupExcludedKeys) do
     profile[key] = nil
-  end
-  local versionOk, versionError = validateBackupVersion(profile)
-  if not versionOk then
-    Profiles.profileStatus = 'Version check failed: ' .. (versionError or 'unknown error')
-    return false
   end
 
   local missingFiles = getMissingMusicFiles(profile)
@@ -585,15 +524,8 @@ local function saveSettingsBackup()
 	  Profiles.profileStatus = 'Current settings failed validation; no file was written.'
     return false
   end
-	local payload = JSON.stringify(snapshot)
-	local checksum = type(payload) == 'string' and makeBackupChecksum(appVersion, backupFormatVersion, payload) or nil
-	local data = checksum and JSON.stringify({
-	appVersion = appVersion,
-	backupFormatVersion = backupFormatVersion,
-	payload = payload,
-	checksum = checksum
-  }) or nil
-	if type(data) ~= 'string' or #data > maximumBackupSize then
+	local data = encodeBackup(snapshot)
+	if not data then
 	Profiles.profileStatus = 'Backup could not be prepared or exceeds the size limit.'
 	return false
   end
@@ -621,7 +553,6 @@ local function saveSettingsBackup()
 	end
   settings.backupName = safeName
   Backup.selectedBackupToLoad = safeName
-  settings.savedSettings = data
   refreshBackupList()
 	Profiles.profileStatus = 'Backup saved and verified: ' .. safeName .. ' (app ' .. appVersion .. ').'
 	if not snapshot.mainWindowPosition or not snapshot.mainWindowSize then
@@ -646,21 +577,17 @@ local function loadSettingsBackup()
   end
 	local filePath = backupFilePath(safeName)
   local data = filePath and io.fileExists(filePath) and io.load(filePath) or nil
-  if not data and safeName == 'My settings' then
-    data = settings.savedSettings ~= '' and settings.savedSettings or nil
-  end
 	if type(data) ~= 'string' or #data == 0 or #data > maximumBackupSize then
 	Profiles.profileStatus = 'No valid backup is available for this name.'
 	return false
   end
-	local saved, decodeError = decodeBackupData(data)
+	local saved, decodeResult = decodeBackupData(data)
 	if not saved then
-	Profiles.profileStatus = decodeError
+	Profiles.profileStatus = decodeResult
 	return false
 	end
-	local versionValid, versionStatus = validateBackupVersion(saved)
-	if not versionValid or not applyAllSettings(saved, true) then
-	Profiles.profileStatus = versionStatus or 'Backup failed settings validation; no settings were changed.'
+	if not applyAllSettings(saved, true) then
+	Profiles.profileStatus = 'Backup failed settings validation; no settings were changed.'
 	return false
 	end
 	if not applyAllSettings(saved) then
@@ -671,8 +598,7 @@ local function loadSettingsBackup()
   Profiles.activeVehicleProfileKey = nil
   Profiles.activeKeywordProfileKey = nil
   Profiles.keywordProfileContextInitialized = false
-	Profiles.profileStatus = versionStatus and (versionStatus .. ' ' .. safeName .. '.')
-		or ('Backup loaded and validated: ' .. safeName .. ' (app ' .. appVersion .. ').')
+	Profiles.profileStatus = 'Backup loaded and validated: ' .. safeName .. ' (app ' .. decodeResult .. ').'
   return true
 end
 

@@ -4,6 +4,7 @@ local Keywords = modules.keywords
 local Profiles = modules.profiles
 
 local settings = modules.settings.settings
+local defaultKeywordRows = modules.settings.defaultKeywordRows
 local Debug = modules.debug.Debug
 local sliders = modules.widgets.sliders
 
@@ -124,25 +125,8 @@ local function parseKeywords()
     return cachedKeywords
   end
 
-  if type(settings.keywordRows) ~= 'string' then
-    settings.keywordRows = 'v1:'
-  end
-
-  if settings.keywordRows:sub(1, 3) ~= 'v1:' then
-    local keywords = {}
-    if type(settings.keywords) == 'string' then
-      for keyword in settings.keywords:gmatch('[^,]+') do
-        keyword = keyword:match('^%s*(.-)%s*$')
-        if keyword ~= '' and #keywords < 256 then
-          keywords[#keywords + 1] = keyword
-        end
-      end
-    end
-    specialAlertKeys.ensure(keywords)
-    saveKeywords(keywords)
-    cachedKeywords = keywords
-    cachedKeywordProfileKey = Profiles.activeKeywordProfileKey
-    return keywords
+  if type(settings.keywordRows) ~= 'string' or settings.keywordRows:sub(1, 3) ~= 'v1:' then
+    settings.keywordRows = defaultKeywordRows
   end
 
   local keywords = decodeKeywordRows(settings.keywordRows)

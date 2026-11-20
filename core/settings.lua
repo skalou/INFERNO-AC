@@ -4,10 +4,12 @@ local Store = modules.settings
 
 local defaultAlertSoundFile = modules.paths.defaultAlertSoundFile
 
-local settings = ac.storage({
+-- Keyword list of a new install and of keyword resets: no keyword. The built-in "your name" and "friends"
+-- entries are added by parseKeywords(). Format: 'v1:' followed by '=<encoded keyword>' entries separated by ';'.
+local defaultKeywordRows = 'v1:'
 
-  keywords = 'ric,convoy,skalou',
-  keywordRows = '',
+local settings = ac.storage({
+  keywordRows = defaultKeywordRows,
   mentionMe = true,
   mentionSoundMuted = false,
   showAllChatMessages = false,
@@ -22,9 +24,8 @@ local settings = ac.storage({
   keywordSoundAssignments = '',
   mutedKeywords = '',
   keywordOptions = '',
-  savedSettings = '',
-    recentSounds = '',
-  backupName = 'isuchatalertversionv.2.8.1-5',
+  recentSounds = '',
+  backupName = 'My settings',
   settingsWindowHeightPercent = 75,
   settingsWindowPositionSaved = false,
   settingsWindowOffsetX = 0,
@@ -52,11 +53,11 @@ local settings = ac.storage({
   outlineColor = rgbm(20 / 255, 20 / 255, 20 / 255, 1),
   backgroundColor = rgbm(26 / 255, 26 / 255, 26 / 255, 1),
   accentColor = rgbm(97 / 255, 138 / 255, 81 / 255, 198 / 255)
--- Old key prefix kept so migrated settings still load.
-}, 'IsuChatAlertLua_')
+}, 'INFERNO_')
 local maxOutlineScale = 3
 
 Store.settings = settings
 Store.maxOutlineScale = maxOutlineScale
+Store.defaultKeywordRows = defaultKeywordRows
 
 return Store

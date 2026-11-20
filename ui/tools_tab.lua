@@ -53,6 +53,7 @@ local function drawToolsTab()
   ui.separator()
   ui.header('Debug')
   local cspVersion = ac.getPatchVersionCode and ac.getPatchVersionCode() or 'unknown'
+  ui.text('App version: ' .. App.versionLabel)
   ui.text('CSP Version: ' .. tostring(cspVersion))
   local uiScale = ac.getUI() and ac.getUI().uiScale or 'unknown'
   ui.text('UI Scale: ' .. tostring(uiScale))
@@ -62,6 +63,7 @@ local function drawToolsTab()
   ui.text('Server: ' .. serverName)
   if ui.button('Print debug to log', vec2(-0.1, 0)) then
 	Debug.info(App.displayName .. ' Debug Info:')
+	Debug.info('  App version: ' .. App.versionLabel)
 	Debug.info('  CSP Version: ' .. tostring(cspVersion))
 	Debug.info('  UI Scale: ' .. tostring(uiScale))
 	Debug.info('  Vehicle: ' .. vehicleName)

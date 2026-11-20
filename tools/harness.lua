@@ -57,6 +57,11 @@ FS[soundRoot .. '\\00defaultALERT.wav'] = 'wav'
 FS[soundRoot .. '\\beep.mp3'] = 'mp3'
 FS[soundRoot .. '\\Sub\\sub.wav'] = 'wav'
 DIRS[soundRoot] = true; DIRS[soundRoot .. '\\Sub'] = true
+-- Data of the old IsuChat Alert app: 0.4.0 must never read or copy it.
+local oldState = 'C:\\stub\\ExtCfgState\\lua\\app\\isuChatAlertLua'
+FS[oldState .. '.ini'] = 'old settings'
+FS[oldState .. '\\Saves\\Old.json'] = 'old backup'
+DIRS[oldState] = true; DIRS[oldState .. '\\Saves'] = true
 io.fileExists = function(p) return FS[p] ~= nil end
 io.dirExists = function(p) return DIRS[p] == true end
 io.createDir = function(p) DIRS[p] = true trace('mkdir ' .. p) return true end
@@ -107,6 +112,7 @@ ac = {
   getFolder = function(id) return 'C:\\stub\\' .. tostring(id) end,
   storage = function(defaults, prefix)
     STORE = {}
+    STORAGE_PREFIX = prefix
     for k, v in pairs(defaults) do STORE[k] = v end
     trace('storage prefix ' .. prefix)
     return STORE
@@ -206,6 +212,97 @@ if windowDev and withDev then step('windowDev', function() windowDev(0.016) end)
 -- Checks: targeted tests of module functions, run after the scenario. Add new cases to this list.
 local CHECKS = {}
 local function check(name, fn) CHECKS[#CHECKS + 1] = { name = name, fn = fn } end
+
+local M = require('core.modules')
+local S = M.settings.settings
+local stateDir = 'C:\\stub\\ExtCfgState\\lua\\app\\INFERNO-ChatAlerts'
+local serverKey = 'server:1.2.3.4:9600'
+local function status() return tostring(M.profiles.profileStatus) end
+local function keywordSet()
+  local set = {}
+  for _, k in ipairs(M.keywords.parseKeywords()) do set[k] = true end
+  return set
+end
+
+check('settings use the INFERNO_ storage prefix', function()
+  assert(STORAGE_PREFIX == 'INFERNO_', tostring(STORAGE_PREFIX))
+end)
+check('nothing is copied from the old isuChatAlertLua folder', function()
+  for _, l in ipairs(TRACE) do assert(not l:find('isuChatAlertLua', 1, true), l) end
+end)
+check('a keyword reset leaves only the built-in entries', function()
+  M.backup.resetKeywordSettings()
+  local keywords = M.keywords.parseKeywords()
+  assert(#keywords == 2, #keywords .. ' entries')
+  assert(keywords[1]:byte(1) == 1 and keywords[2]:byte(1) == 1, 'unexpected keyword')
+end)
+check('settings backup: save then load restores values', function()
+  M.backup.pendingOverwrite.backup = nil
+  S.backupName = 'Roundtrip'
+  S.textSize = 33
+  assert(M.backup.saveSettingsBackup(), status())
+  assert(FS[stateDir .. '\\Saves\\Roundtrip.json']:find('INFERNO-Settings', 1, true), 'format id missing')
+  S.textSize = 60
+  M.backup.selectedBackupToLoad = 'Roundtrip'
+  assert(M.backup.loadSettingsBackup(), status())
+  assert(S.textSize == 33, 'textSize ' .. tostring(S.textSize))
+  assert(status():find('app 0.4.0', 1, true), status())
+end)
+-- A complete, valid settings snapshot (taken from the Roundtrip backup), so old files fail only because of their format.
+local function validSnapshotJson()
+  return JSON.parse(FS[stateDir .. '\\Saves\\Roundtrip.json']).payload
+end
+check('IsuChat Alert 2.8 backup is rejected and changes nothing', function()
+  local payload = validSnapshotJson()
+  FS[stateDir .. '\\Saves\\Old28.json'] = JSON.stringify({ appVersion = '2.8.2', backupFormatVersion = 1, payload = payload,
+    checksum = M.backup.makeBackupChecksum('2.8.2', 1, payload) })
+  S.textSize = 44
+  M.backup.selectedBackupToLoad = 'Old28'
+  assert(not M.backup.loadSettingsBackup(), 'old backup was accepted')
+  assert(S.textSize == 44, 'settings changed')
+  assert(status():find('not supported', 1, true), status())
+end)
+check('unwrapped legacy backup is rejected', function()
+  FS[stateDir .. '\\Saves\\Legacy.json'] = validSnapshotJson()
+  M.backup.selectedBackupToLoad = 'Legacy'
+  assert(not M.backup.loadSettingsBackup(), 'legacy backup was accepted')
+  assert(S.textSize == 44, 'settings changed')
+end)
+check('server backup: written with format id and read back', function()
+  S.textSize = 55
+  assert(M.backup.saveServerBackup('Test Server', false), status())
+  local data = FS[stateDir .. '\\Saves\\Servers\\1_2_3_4_9600.json']
+  assert(data and data:find('INFERNO-Settings', 1, true), 'server file missing or without format id')
+  S.textSize = 70
+  assert(M.backup.loadServerBackup('Test Server'), status())
+  assert(S.textSize == 55, 'textSize ' .. tostring(S.textSize))
+end)
+check('server backup saved under the server name (old layout) is not used', function()
+  FS[stateDir .. '\\Saves\\Servers\\1_2_3_4_9600.json'] = nil
+  FS[stateDir .. '\\Saves\\Servers\\Test_Server.json'] = FS[stateDir .. '\\Saves\\Roundtrip.json']
+  assert(not M.backup.loadServerBackup('Test Server'), 'fallback file was used')
+  assert(status():find('No saved settings', 1, true), status())
+end)
+check('shared keyword list: export then import', function()
+  M.backup.resetKeywordSettings()
+  M.keywords.saveKeywords({ 'alpha', 'beta' })
+  M.backup.pendingOverwrite.export = nil
+  assert(M.sharing.exportSharedKeywordProfile(serverKey, 'Server: Test', 'RoundtripList'), status())
+  assert(FS[stateDir .. '\\SharedKeywords\\RoundtripList.json']:find('INFERNO-KeywordList', 1, true), 'format id missing')
+  M.keywords.saveKeywords({ 'gamma' })
+  assert(M.sharing.stageSharedKeywordImport('RoundtripList.json', serverKey, 'Server: Test'), status())
+  assert(M.sharing.applyStagedSharedKeywordImport(serverKey), status())
+  local set = keywordSet()
+  assert(set.alpha and set.beta and not set.gamma, 'imported list not applied')
+end)
+check('IsuChat shared keyword file is rejected', function()
+  local payload = JSON.stringify({ serverLabel = 'Old', profile = {} })
+  FS[stateDir .. '\\SharedKeywords\\OldList.json'] = JSON.stringify({ format = 'IsuChatAlertServerKeywords', formatVersion = 1,
+    appVersion = '2.8.2', payload = payload, checksum = M.backup.makeBackupChecksum('2.8.2', 1, payload) })
+  assert(not M.sharing.stageSharedKeywordImport('OldList.json', serverKey, 'Server: Test'), 'old shared file was accepted')
+  assert(status():find('format', 1, true), status())
+end)
+
 local checkResults = {}
 local failed = 0
 for _, c in ipairs(CHECKS) do

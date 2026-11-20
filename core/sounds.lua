@@ -71,8 +71,6 @@ local function describeAlertSound(fileName)
 end
 
 refreshAlertSoundFiles()
--- Older versions used alert.wav as the default name; the built-in sound now replaces it.
-if settings.mentionSound == 'alert.wav' then settings.mentionSound = defaultAlertSoundFile end
 
 local function isAlertSoundPlaying()
   if not currentSoundEvent then return false end

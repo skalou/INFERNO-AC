@@ -3,6 +3,7 @@ local modules = require('core.modules')
 local Profiles = modules.profiles
 
 local settings = modules.settings.settings
+local defaultKeywordRows = modules.settings.defaultKeywordRows
 local maxOutlineScale = modules.settings.maxOutlineScale
 local Debug = modules.debug.Debug
 local unpackStoredTable = modules.util.unpackStoredTable
@@ -25,16 +26,6 @@ Profiles.profileStatus = ''
 
 Profiles.vehicleDisplayProfiles = unpackStoredTable(settings.vehicleDisplayProfiles, 'vehicle display profiles')
 Profiles.keywordProfiles = unpackStoredTable(settings.keywordProfiles, 'keyword profiles')
-local removedModeProfiles = false
-for profileKey in pairs(Profiles.keywordProfiles) do
-  if type(profileKey) == 'string' and profileKey:match('^mode:') then
-	Profiles.keywordProfiles[profileKey] = nil
-	removedModeProfiles = true
-  end
-end
-if removedModeProfiles then
-  settings.keywordProfiles = stringify(Profiles.keywordProfiles, true)
-end
 
 local function getVehicleProfileKey()
   local carID = ac.getCarID(0)
@@ -67,7 +58,6 @@ end
 
 local function captureKeywordProfile()
   return {
-	keywords = settings.keywords,
 	keywordRows = settings.keywordRows,
 	keywordSoundAssignments = settings.keywordSoundAssignments,
 	mutedKeywords = settings.mutedKeywords,
@@ -89,10 +79,10 @@ local function isValidEncodedValue(value)
 end
 
 local function validateKeywordProfile(profile)
-  if type(profile) ~= 'table' or type(profile.keywords) ~= 'string'
+  if type(profile) ~= 'table'
 	  or type(profile.keywordRows) ~= 'string' or type(profile.keywordSoundAssignments) ~= 'string'
-	  or type(profile.mutedKeywords) ~= 'string' or #profile.keywords > 65536
-	  or (profile.keywordOptions ~= nil and (type(profile.keywordOptions) ~= 'string' or #profile.keywordOptions > 262144))
+	  or type(profile.mutedKeywords) ~= 'string' or type(profile.keywordOptions) ~= 'string'
+	  or #profile.keywordOptions > 262144
 	  or #profile.keywordRows > 262144 or #profile.keywordSoundAssignments > 262144
 	  or #profile.mutedKeywords > 262144 or profile.keywordRows:sub(1, 3) ~= 'v1:' then
 	return false
@@ -122,7 +112,7 @@ local function validateKeywordProfile(profile)
   for entry in profile.mutedKeywords:gmatch('[^;]+') do
 	if not isValidEncodedValue(entry) then return false end
   end
-  for entry in (profile.keywordOptions or ''):gmatch('[^;]+') do
+  for entry in profile.keywordOptions:gmatch('[^;]+') do
 	local encodedKeyword = entry:match('^([^|]+)|%d+|[01]$')
 	if not encodedKeyword or not isValidEncodedValue(encodedKeyword) then return false end
   end
@@ -131,11 +121,10 @@ end
 
 local function applyKeywordProfile(profile)
   if not validateKeywordProfile(profile) then return false end
-  settings.keywords = profile.keywords
   settings.keywordRows = profile.keywordRows
   settings.keywordSoundAssignments = profile.keywordSoundAssignments
   settings.mutedKeywords = profile.mutedKeywords
-  settings.keywordOptions = profile.keywordOptions or ''
+  settings.keywordOptions = profile.keywordOptions
   invalidateKeywordCaches()
   return true
 end
@@ -144,10 +133,9 @@ local function applyKeywordProfileFallback()
   if settings.keywordProfileFallback ~= '' then
 	local fallback = stringify.tryParse(settings.keywordProfileFallback, nil, nil)
 	if applyKeywordProfile(fallback) then return true end
-	Debug.warn('Stored keyword profile fallback is invalid; using built-in keywords.')
+	Debug.warn('Stored keyword profile fallback is invalid; using the default keyword list.')
   end
-  settings.keywords = 'ric,convoy,skalou'
-  settings.keywordRows = 'v1:=ric;=convoy;=skalou'
+  settings.keywordRows = defaultKeywordRows
   settings.keywordSoundAssignments = ''
   settings.mutedKeywords = ''
   settings.keywordOptions = ''
@@ -357,14 +345,14 @@ local function syncKeywordProfile()
 		Profiles.profileStatus = 'The saved keyword profile for this context is invalid.'
 	  end
 	elseif not applyKeywordProfileFallback() then
-	  Profiles.profileStatus = 'The keyword profile fallback was invalid; built-in keywords were loaded.'
+	  Profiles.profileStatus = 'The keyword profile fallback was invalid; the default keyword list was loaded.'
 	end
   elseif settings.useServerKeywordProfiles then
 	if not applyKeywordProfileFallback() then
-	  Profiles.profileStatus = 'The keyword profile fallback was invalid; built-in keywords were loaded.'
+	  Profiles.profileStatus = 'The keyword profile fallback was invalid; the default keyword list was loaded.'
 	end
   elseif previousKey and not applyKeywordProfileFallback() then
-	Profiles.profileStatus = 'The keyword profile fallback was invalid; built-in keywords were loaded.'
+	Profiles.profileStatus = 'The keyword profile fallback was invalid; the default keyword list was loaded.'
   end
 end
 
@@ -381,7 +369,7 @@ local function persistLiveProfiles()
   if Profiles.activeKeywordProfileKey then
     -- Creator and date are ignored here so that they do not trigger a rewrite on every update.
     local stored = Profiles.keywordProfiles[Profiles.activeKeywordProfileKey] or {}
-    if not sameValue(captureKeywordProfile(), { keywords = stored.keywords, keywordRows = stored.keywordRows, keywordSoundAssignments = stored.keywordSoundAssignments, mutedKeywords = stored.mutedKeywords, keywordOptions = stored.keywordOptions }) then
+    if not sameValue(captureKeywordProfile(), { keywordRows = stored.keywordRows, keywordSoundAssignments = stored.keywordSoundAssignments, mutedKeywords = stored.mutedKeywords, keywordOptions = stored.keywordOptions }) then
       saveKeywordProfile(Profiles.activeKeywordProfileKey)
     end
   elseif settings.useServerKeywordProfiles then

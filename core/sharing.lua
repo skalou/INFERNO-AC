@@ -230,7 +230,6 @@ local function readPlainKeywordFile(filePath)
     end
   end
   return {
-    keywords = '',
     keywordRows = 'v1:' .. table.concat(entries, ';'),
     keywordSoundAssignments = '',
     mutedKeywords = '',
@@ -347,7 +346,7 @@ local function applyServerKeywordSource(source, replace)
   if replace then
     settings.keywordSoundAssignments = profile.keywordSoundAssignments
     settings.mutedKeywords = profile.mutedKeywords
-    settings.keywordOptions = profile.keywordOptions or ''
+    settings.keywordOptions = profile.keywordOptions
   end
   saveKeywords(keywords)
 
