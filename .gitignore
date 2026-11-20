@@ -14,3 +14,7 @@ sounds/*
 !sounds/DefaultAppSounds/
 sounds/DefaultAppSounds/*
 !sounds/DefaultAppSounds/00defaultALERT.wav
+
+# Node modules of the test tools
+tools/node_modules/
+tools/last-run.txt

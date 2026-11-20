@@ -1,0 +1,8 @@
+{
+  "name": "inferno-tools",
+  "private": true,
+  "description": "Static checks for INFERNO-ChatAlerts (luaparse). Run: npm install, then node check.js ..",
+  "dependencies": {
+    "luaparse": "^0.3.1"
+  }
+}
