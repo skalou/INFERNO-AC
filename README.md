@@ -3,19 +3,19 @@
 Chat keyword alerts for Assetto Corsa (Custom Shaders Patch apps).
 
 - **INFERNO-Chat Alerts**: the release app. Plays a sound and shows an alert when a chat message matches your keywords, friends or muted keywords.
-- **INFERNO-DEV**: the same code deployed as a separate app, for testing and debug tools.
+- **INFERNO-DEV**: a separate developer app, a copy of FERNO-DEV (icon browser). It is not built from this repository.
 
 ## Install
 
 1. Clone this repository into a working folder outside the game, for example `Documents\Dev\INFERNO-AC`.
 2. Put your sound files in `sounds\` (see below). Only `sounds\DefaultAppSounds\00defaultALERT.wav` is part of the repository.
-3. Run `deploy.ps1` (PowerShell). It copies the mod to `apps\lua\INFERNO-ChatAlerts` and builds `apps\lua\INFERNO-DEV`.
+3. Run `deploy.ps1` (PowerShell). It copies the mod to `apps\lua\INFERNO-ChatAlerts`.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\deploy.ps1
 ```
 
-Use `-AppsFolder` to target another `apps\lua` folder and `-SkipDev` to deploy only the release app.
+Use `-AppsFolder` to target another `apps\lua` folder.
 
 ## Migrating from IsuChat Alert
 

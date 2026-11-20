@@ -2,12 +2,12 @@
 
 ## Session Update (INFERNO-AC rename)
 
-- Mod renamed from "IsuChat Alert" to "INFERNO-AC". Release app: `INFERNO-ChatAlerts` (display name `INFERNO-Chat Alerts`). Dev app: `INFERNO-DEV`, built from the same source by `deploy.ps1`.
+- Mod renamed from "IsuChat Alert" to "INFERNO-AC". Release app: `INFERNO-ChatAlerts` (display name `INFERNO-Chat Alerts`). Dev app: `INFERNO-DEV`, a separate copy of `FERNO-DEV` (not built from this source).
 - Source of truth is this repository (`Documents\Dev\INFERNO-AC`). The game folder only receives deployed copies.
 - Identity lives in the global table `App` at the top of `INFERNO-ChatAlerts.lua` (`folderName`, `displayName`, `migrateFrom`). It is global, not local, because the main chunk is at LuaJIT's 200-local limit. Do not add top-level `local`s without checking the count (`luajit`/fengari reports "too many local variables").
 - `App.stateFolder` is `ExtCfgState\lua\app\<folderName>`. `migrateAppData()` copies the old settings `.ini` and the `Friends`, `Saves`, `SharedKeywords` folders once, and never overwrites.
 - Storage keys keep the `IsuChatAlertLua_` prefix, and `sharedKeywordFormat` keeps `IsuChatAlertServerKeywords`, so existing data and shared files stay compatible.
-- Window lookup matches the display name (`getAppWindow`, `getSettingsWindow`). If the manifest `NAME` changes, `displayName` must match it (`deploy.ps1` keeps them in sync for DEV).
+- Window lookup matches the display name (`getAppWindow`, `getSettingsWindow`). If the manifest `NAME` changes, `displayName` must match it.
 - Sounds are not in the repository (copyright). Only `sounds\DefaultAppSounds\00defaultALERT.wav` is tracked.
 - Tests run outside the mod (fengari harnesses: friends, recent sounds, migration). Check in-game before release.
 
