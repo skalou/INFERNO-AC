@@ -42,5 +42,5 @@ Sound files are not published here: most are copyrighted extracts. Put your own 
 - `tools\`: test tools (not deployed).
 - `manifest.ini`: CSP app and window definitions.
 - `deploy.ps1`: deployment to the Assetto Corsa apps folder.
-- `icons\`, `icon.png`, `Damier1.png`: UI assets.
+- `icons\dev.png`, `icon.png`: UI assets (`icons\dev.png` is the INFERNO-DEV window icon).
 - `*.md`: development notes.
