@@ -24,7 +24,6 @@ local function getAppWindow(suffix)
 end
 
 local function getSettingsWindow()
-Debug.trace('Capturing current keyword profile')
   for _, window in ipairs(ac.getAppWindows()) do
 	if type(window.name) == 'string' and window.name:match('_settings$')
 		and type(window.title) == 'string' and window.title:find(App.displayName, 1, true) == 1 then

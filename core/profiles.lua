@@ -82,7 +82,6 @@ local function isValidEncodedValue(value)
 	  if not value:sub(index + 1, index + 2):match('^%x%x$') then return false end
 	  index = index + 3
 	else
-Debug.trace('Applying keyword profile: ' .. tostring(profile))
 	  index = index + 1
 	end
   end
