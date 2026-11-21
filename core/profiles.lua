@@ -1,5 +1,6 @@
 -- Per-car display profiles and per-server keyword profiles.
 local modules = require('core.modules')
+local tr = modules.i18n.tr
 local Profiles = modules.profiles
 
 local settings = modules.settings.settings
@@ -39,9 +40,9 @@ local function getKeywordProfileContext()
     local serverID = serverAddress and serverAddress ~= '' and serverAddress or serverName
     local serverLabel = serverName and serverName ~= '' and serverName or serverAddress
     local serverPort = ac.getServerPortTCP()
-    return 'server:' .. serverID:lower() .. ':' .. tostring(serverPort), 'Server: ' .. serverLabel
+    return 'server:' .. serverID:lower() .. ':' .. tostring(serverPort), tr('Server: %s', serverLabel)
   end
-  return nil, 'No active server session'
+  return nil, tr('No active server session')
 end
 
 local function getKeywordProfileKey()
@@ -238,7 +239,7 @@ local function resetVehicleDisplayProfile(key)
   settings.hideWhenNotHovered = false
   settings.backgroundEnabled = false
   settings.outlineThicknessPercent = 8
-  settings.softOutline = false
+  settings.softOutline = true
   settings.textColor = rgbm(1, 102 / 255, 134 / 255, 242 / 255)
   settings.authorColor = rgbm(1, 190 / 255, 80 / 255, 1)
   settings.playerColor = rgbm(0.3, 1, 0.3, 1)
@@ -280,7 +281,7 @@ local function applyVehicleDisplayProfile(key)
 	if not isFiniteNumber(profile[field]) then return false end
   end
   if profile.textSize < 8 or profile.textSize > 96
-	  or profile.duration < 1 or profile.duration > 10
+	  or profile.duration < 0.1 or profile.duration > 10
 	  or profile.opacity < 0 or profile.opacity > 100
 	  or profile.outlineThicknessPercent < 0
 	  or profile.outlineThicknessPercent > maxOutlineScale * 100 / 8 then
@@ -324,7 +325,7 @@ local function syncVehicleDisplayProfile()
 	local profileKey = Profiles.vehicleDisplayProfiles[nextKey] and nextKey or 'all:default'
 	if Profiles.vehicleDisplayProfiles[profileKey] then
 	  if not applyVehicleDisplayProfile(profileKey) then
-		Profiles.profileStatus = 'The saved display profile for this car is invalid.'
+		Profiles.profileStatus = tr('The saved display profile for this car is invalid.')
 	  end
 	else
 	  resetVehicleDisplayProfile(nextKey)
@@ -342,17 +343,17 @@ local function syncKeywordProfile()
   if nextKey then
 	if Profiles.keywordProfiles[nextKey] then
 	  if not loadKeywordProfile(nextKey) then
-		Profiles.profileStatus = 'The saved keyword profile for this context is invalid.'
+		Profiles.profileStatus = tr('The saved keyword profile for this context is invalid.')
 	  end
 	elseif not applyKeywordProfileFallback() then
-	  Profiles.profileStatus = 'The keyword profile fallback was invalid; the default keyword list was loaded.'
+	  Profiles.profileStatus = tr('The keyword profile fallback was invalid; the default keyword list was loaded.')
 	end
   elseif settings.useServerKeywordProfiles then
 	if not applyKeywordProfileFallback() then
-	  Profiles.profileStatus = 'The keyword profile fallback was invalid; the default keyword list was loaded.'
+	  Profiles.profileStatus = tr('The keyword profile fallback was invalid; the default keyword list was loaded.')
 	end
   elseif previousKey and not applyKeywordProfileFallback() then
-	Profiles.profileStatus = 'The keyword profile fallback was invalid; the default keyword list was loaded.'
+	Profiles.profileStatus = tr('The keyword profile fallback was invalid; the default keyword list was loaded.')
   end
 end
 

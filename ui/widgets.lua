@@ -2,11 +2,13 @@
 local modules = require('core.modules')
 local Sounds = modules.sounds
 local Widgets = modules.widgets
+local tr = modules.i18n.tr
 
 local defaultAlertSoundFile = modules.paths.defaultAlertSoundFile
 local App = modules.paths.App
 local soundFolder = modules.paths.soundFolder
 local settings = modules.settings.settings
+local colorDefaults = modules.settings.colorDefaults
 local Debug = modules.debug.Debug
 local playAlertSound = modules.sounds.playAlertSound
 local isSoundTestPlaying = modules.sounds.isSoundTestPlaying
@@ -15,6 +17,106 @@ local describeAlertSound = modules.sounds.describeAlertSound
 
 local soundFolderStatus = ''
 local comboWasOpen = {}
+
+-- In DEBUG mode, text is drawn as a read-only input without frame or padding, so it can be selected and copied but looks the same.
+-- Inputs need a unique ID within a frame, hence the per-frame counter; the text is part of the ID so a changed text starts a new input.
+local selectableText = { frame = -1, count = 0, grey = rgbm(0.5, 0.5, 0.5, 1) }
+
+local function drawSelectableLine(text, color)
+  local frame = ui.frameCount()
+  if frame ~= selectableText.frame then
+    selectableText.frame = frame
+    selectableText.count = 0
+  end
+  selectableText.count = selectableText.count + 1
+  local transparent = rgbm(0, 0, 0, 0)
+  ui.pushStyleVar(ui.StyleVar.FramePadding, vec2(0, 0))
+  ui.pushStyleColor(ui.StyleColor.FrameBg, transparent)
+  ui.pushStyleColor(ui.StyleColor.FrameBgHovered, transparent)
+  ui.pushStyleColor(ui.StyleColor.FrameBgActive, transparent)
+  if color then ui.pushStyleColor(ui.StyleColor.Text, color) end
+  ui.setNextItemWidth(ui.measureText(text).x + 6)
+  ui.inputText('##selectable' .. selectableText.count .. text, text, ui.InputTextFlags.ReadOnly + ui.InputTextFlags.NoHorizontalScroll)
+  ui.popStyleColor(color and 4 or 3)
+  ui.popStyleVar(1)
+end
+
+-- Greedy word wrap, one entry per line; each newline in the text starts a new line.
+local function wrapLines(text, maxWidth)
+  local lines = {}
+  for paragraph in (text .. '\n'):gmatch('(.-)\n') do
+    local line = ''
+    for word in paragraph:gmatch('%S+') do
+      local candidate = line == '' and word or line .. ' ' .. word
+      if line ~= '' and ui.measureText(candidate).x > maxWidth then
+        lines[#lines + 1] = line
+        line = word
+      else
+        line = candidate
+      end
+    end
+    lines[#lines + 1] = line
+  end
+  return lines
+end
+
+-- Replaces ui.text / ui.textColored: selectable in DEBUG mode, plain text otherwise.
+function Widgets.text(text, color)
+  if settings.debugEnabled then
+    drawSelectableLine(text, color)
+  elseif color then
+    ui.textColored(text, color)
+  else
+    ui.text(text)
+  end
+end
+
+-- Replaces ui.textDisabled.
+function Widgets.textDisabled(text)
+  if settings.debugEnabled then
+    drawSelectableLine(text, selectableText.grey)
+  else
+    ui.textDisabled(text)
+  end
+end
+
+-- Replaces ui.textWrapped. In DEBUG mode each wrapped line is its own input, so a paragraph is copied one line at a time.
+function Widgets.textWrapped(text)
+  if settings.debugEnabled then
+    for _, line in ipairs(wrapLines(text, ui.availableSpaceX())) do
+      drawSelectableLine(line)
+    end
+  else
+    ui.textWrapped(text)
+  end
+end
+
+-- Hover help for a setting, from ui/setting_help.lua. In DEBUG mode the technical details are added: key, storage, default, current value and range.
+-- Call it right after the widget. Nothing is shown when the last item is not hovered, or when the setting has no help text.
+function Widgets.settingTooltip(key, current, default, min, max, step)
+  local help = modules.settingHelp
+  local text = key and help.texts[key]
+  if not text or not ui.itemHovered() then return end
+  local lines = wrapLines(tr(text), 360)
+  if settings.debugEnabled then
+    local function format(value)
+      if type(value) == 'boolean' then return tostring(value) end
+      if type(value) == 'number' then return string.format('%g', value) end
+      return string.format('RGBA %d, %d, %d, %d', math.floor(value.r * 255 + 0.5), math.floor(value.g * 255 + 0.5), math.floor(value.b * 255 + 0.5), math.floor(value.mult * 255 + 0.5))
+    end
+    lines[#lines + 1] = ''
+    lines[#lines + 1] = tr('Key: %s', key)
+    lines[#lines + 1] = tr('Storage: %s', help.storage[key] or ('INFERNO_' .. key))
+    if default ~= nil then lines[#lines + 1] = tr('Default: %s', format(default)) end
+    lines[#lines + 1] = tr('Current: %s', format(current))
+    if min then
+      local range = tr('Range: %s to %s', format(min), format(max))
+      if step then range = range .. ', step ' .. format(step) end
+      lines[#lines + 1] = range
+    end
+  end
+  ui.setTooltip(table.concat(lines, '\n'))
+end
 
 -- Slider and checkbox defaults and helpers, grouped in one table because Lua allows only 200 locals per chunk.
 local sliders = {
@@ -31,11 +133,13 @@ local sliders = {
     showAllChatMessages = false,
     hideWhenNotHovered = false,
     backgroundEnabled = false,
-    softOutline = false,
+    softOutline = true,
     useVehicleDisplayProfiles = false,
     useServerKeywordProfiles = false,
     autoSaveServerSettings = false,
-    debugModeEnabled = true,
+    debugEnabled = false,
+    debugTraceEnabled = false,
+    debugModeEnabled = false,
     simulatorFriend = false,
   },
   modifiedColor = rgbm(1, 1, 0.4, 1),
@@ -43,8 +147,13 @@ local sliders = {
 }
 
 -- Right-click (on release) restores the default, the label turns yellow while the value differs, the mouse wheel moves by `step`.
-function sliders.withDefault(label, value, min, max, format, default, step)
+-- An optional icon is drawn on the left of the slider.
+function sliders.withDefault(label, value, min, max, format, default, step, key, icon)
   local modified = math.abs(value - default) > 0.0001
+  if icon then
+    ui.icon(icon, ui.fontSize())
+    ui.sameLine()
+  end
   if modified then ui.pushStyleColor(ui.StyleColor.Text, sliders.modifiedColor) end
   local newValue = ui.slider(label, value, min, max, format)
   if modified then ui.popStyleColor(1) end
@@ -55,11 +164,13 @@ function sliders.withDefault(label, value, min, max, format, default, step)
     end
   end
   if ui.itemClicked(ui.MouseButton.Right, true) then newValue = default end
+  Widgets.settingTooltip(key, newValue, default, min, max, step)
   return newValue
 end
 
 -- Checkbox whose box and label turn yellow while its value differs from the default; returns true when clicked, like ui.checkbox.
-function sliders.checkbox(label, value, default)
+-- With an icon, the icon sits between the box and the label, and the label is a button so clicking the text also toggles it.
+function sliders.checkbox(label, value, default, key, icon)
   local modified = value ~= default
   if modified then
     ui.pushStyleColor(ui.StyleColor.FrameBg, sliders.modifiedColor)
@@ -68,8 +179,21 @@ function sliders.checkbox(label, value, default)
     ui.pushStyleColor(ui.StyleColor.CheckMark, sliders.modifiedCheckMark)
     ui.pushStyleColor(ui.StyleColor.Text, sliders.modifiedColor)
   end
-  local clicked = ui.checkbox(label, value)
+  local clicked
+  if icon then
+    clicked = ui.checkbox('##box_' .. key, value)
+    Widgets.settingTooltip(key, value, default)
+    ui.sameLine()
+    ui.icon(icon, ui.fontSize())
+    ui.sameLine()
+    ui.pushStyleColor(ui.StyleColor.Button, rgbm(0, 0, 0, 0))
+    if ui.button(label .. '##label_' .. key) then clicked = true end
+    ui.popStyleColor(1)
+  else
+    clicked = ui.checkbox(label, value)
+  end
   if modified then ui.popStyleColor(5) end
+  Widgets.settingTooltip(key, value, default)
   return clicked
 end
 
@@ -131,9 +255,9 @@ end
 
 function soundPicker.drawRecent(selectedSound, usedSounds, onPick)
   local names = soundPicker.recentNames()
-  ui.textColored('Recent Sounds', rgbm(0.6, 0.6, 0.6, 1))
+  Widgets.text(tr('Recent Sounds'), rgbm(0.6, 0.6, 0.6, 1))
   if #names == 0 then
-	ui.textColored('No recent sounds yet, pick one below', rgbm(0.45, 0.45, 0.45, 1))
+	Widgets.text(tr('No recent sounds yet, pick one below'), rgbm(0.45, 0.45, 0.45, 1))
 	ui.separator()
 	return
   end
@@ -201,7 +325,7 @@ function soundPicker.drawSelector(id, text, width, phase, drawOptions)
   ui.pushStyleVar(ui.StyleVar.WindowPadding, vec2(0, 0))
   ui.setNextWindowContentSize(vec2(contentWidth, 0))
   if ui.beginChild(id .. 'Preview', vec2(previewWidth, 22), true, ui.WindowFlags.NoScrollbar) then
-    ui.text(text)
+    Widgets.text(text)
     local maxScroll = ui.getScrollMaxX()
     if maxScroll > 0 and not ui.itemHovered() then
       local speed = 35
@@ -251,13 +375,13 @@ function soundPicker.folderOf(fileName)
 end
 
 function soundPicker.folderLabel(folder)
-  return folder == '' and '(sounds root)' or folder
+  return folder == '' and tr('(sounds root)') or folder
 end
 
 -- Sound dropdown: recent sounds, the default, then every sub-folder with its sounds. defaultValue is stored for the default entry.
 function soundPicker.drawFile(id, selectedSound, width, phase, defaultValue, usedSounds, onPick)
   local isDefault = not selectedSound or selectedSound == defaultAlertSoundFile
-  local defaultLabel = 'Default (' .. defaultAlertSoundFile .. ')'
+  local defaultLabel = tr('Default (%s)', defaultAlertSoundFile)
   soundPicker.drawSelector(id, isDefault and defaultLabel or describeAlertSound(selectedSound), width, phase, function()
 	  soundPicker.drawRecent(selectedSound, usedSounds, onPick)
 	if ui.selectable(defaultLabel, isDefault) then
@@ -265,7 +389,7 @@ function soundPicker.drawFile(id, selectedSound, width, phase, defaultValue, use
 	end
 	if isDefault then ui.setItemDefaultFocus() end
 	for _, group in ipairs(soundPicker.groupedSounds()) do
-	  ui.textColored(soundPicker.folderLabel(group.folder), rgbm(0.6, 0.6, 0.6, 1))
+	  Widgets.text(soundPicker.folderLabel(group.folder), rgbm(0.6, 0.6, 0.6, 1))
 	  for _, fileName in ipairs(group.files) do
 		soundPicker.drawSoundRow('list' .. fileName, fileName, fileName, selectedSound == fileName, usedSounds, onPick)
 	  end
@@ -275,23 +399,66 @@ function soundPicker.drawFile(id, selectedSound, width, phase, defaultValue, use
 end
 
 -- Debug colors, editable from the Tools tab and stored in settings as text.
-local debugColors = {
-  background = rgbm(1, 1, 1, 1),
-  childBg = rgbm(0, 0, 1, 0.9),
-  scrollbarBg = rgbm(0, 1, 0, 1),
-  resizeGrip = rgbm(1, 0.2, 0.8, 1),
+local rowFrameDefault = rgbm(1, 0.5, 0, 1)
+local function newDebugColors()
+  return {
+    background = rgbm(1, 1, 1, 1),
+    childBg = rgbm(0, 0, 1, 0.9),
+    scrollbarBg = rgbm(0, 1, 0, 1),
+    resizeGrip = rgbm(1, 0.2, 0.8, 1),
+    usedSound = rgbm(1, 0.85, 0.2, 1),
+    selectedSound = rgbm(1, 0.5, 0, 1),
+    rowFrame = rowFrameDefault:clone(),
+    buttonOverflow = sliders.defaults.buttonOverflow,
+  }
+end
+local debugColors = newDebugColors()
+-- Untouched copy of the default debug colours, shown read-only and used by the per-colour reset.
+local debugColorDefaults = newDebugColors()
+
+local debugColorKeys = { 'background', 'childBg', 'scrollbarBg', 'resizeGrip', 'usedSound', 'selectedSound', 'rowFrame' }
+-- Colours switched off with their checkbox. A colour absent from this table is enabled.
+local debugColorDisabled = {}
+-- Normal (non-debug) colour of each diagnostic colour, used while Diagnostic colors or its checkbox is off. Editable from the Tools tab and stored in settings as text.
+local normalColorDefaults = {
+  background = rgbm(0.14, 0.14, 0.14, 0.96),
+  childBg = rgbm(0, 0, 0, 0),
+  scrollbarBg = rgbm(0.02, 0.02, 0.02, 0.53),
+  resizeGrip = rgbm(97 / 255, 138 / 255, 81 / 255, 0.45),
   usedSound = rgbm(1, 0.85, 0.2, 1),
   selectedSound = rgbm(1, 0.5, 0, 1),
-  buttonOverflow = sliders.defaults.buttonOverflow,
+  rowFrame = rowFrameDefault:clone(),
 }
+local normalColors = {}
+for key, value in pairs(normalColorDefaults) do normalColors[key] = value:clone() end
+
+function Widgets.debugColorNormal(key)
+  return normalColors[key]
+end
+
+function Widgets.debugColorDefault(key)
+  return debugColorDefaults[key]
+end
+
+local function formatColor(c)
+  return string.format('%.4f,%.4f,%.4f,%.4f', c.r, c.g, c.b, c.mult)
+end
+
+local function parseColor(value)
+  local numbers = {}
+  for number in value:gmatch('[%-%d%.]+') do numbers[#numbers + 1] = tonumber(number) end
+  if #numbers == 4 then return rgbm(numbers[1], numbers[2], numbers[3], numbers[4]) end
+end
 
 local function encodeDebugColors()
   local parts = {}
-  for _, key in ipairs({ 'background', 'childBg', 'scrollbarBg', 'resizeGrip', 'usedSound', 'selectedSound' }) do
-    local c = debugColors[key]
-    parts[#parts + 1] = string.format('%s:%.4f,%.4f,%.4f,%.4f', key, c.r, c.g, c.b, c.mult)
+  local disabled = {}
+  for _, key in ipairs(debugColorKeys) do
+    parts[#parts + 1] = key .. ':' .. formatColor(debugColors[key])
+    if debugColorDisabled[key] then disabled[#disabled + 1] = key end
   end
   parts[#parts + 1] = string.format('buttonOverflow:%.2f', debugColors.buttonOverflow)
+  if #disabled > 0 then parts[#parts + 1] = 'off:' .. table.concat(disabled, ',') end
   return table.concat(parts, ';')
 end
 
@@ -299,38 +466,88 @@ local function decodeDebugColors(text)
   for key, value in text:gmatch('(%a+):([^;]*)') do
     if key == 'buttonOverflow' then
       debugColors.buttonOverflow = tonumber(value) or debugColors.buttonOverflow
+    elseif key == 'off' then
+      for disabledKey in value:gmatch('[^,]+') do debugColorDisabled[disabledKey] = true end
     elseif debugColors[key] then
-      local numbers = {}
-      for number in value:gmatch('[%-%d%.]+') do numbers[#numbers + 1] = tonumber(number) end
-      if #numbers == 4 then debugColors[key] = rgbm(numbers[1], numbers[2], numbers[3], numbers[4]) end
+      debugColors[key] = parseColor(value) or debugColors[key]
     end
+  end
+end
+
+local function encodeNormalColors()
+  local parts = {}
+  for _, key in ipairs(debugColorKeys) do parts[#parts + 1] = key .. ':' .. formatColor(normalColors[key]) end
+  return table.concat(parts, ';')
+end
+
+local function decodeNormalColors(text)
+  for key, value in text:gmatch('(%a+):([^;]*)') do
+    if normalColors[key] then normalColors[key] = parseColor(value) or normalColors[key] end
   end
 end
 
 local function saveDebugColors()
   local encoded = encodeDebugColors()
   if encoded ~= settings.debugColorsData then settings.debugColorsData = encoded end
+  local encodedNormal = encodeNormalColors()
+  if encodedNormal ~= settings.normalColorsData then settings.normalColorsData = encodedNormal end
 end
 
 decodeDebugColors(settings.debugColorsData)
+decodeNormalColors(settings.normalColorsData)
 
--- The debug colour applies only while Debug mode is on; otherwise the default yellow is used.
+-- Restores the default debug and normal colours and the debug checkboxes.
+function Widgets.resetDebugColors()
+  for key, value in pairs(newDebugColors()) do debugColors[key] = value end
+  for key, value in pairs(normalColorDefaults) do normalColors[key] = value:clone() end
+  for key in pairs(debugColorDisabled) do debugColorDisabled[key] = nil end
+  saveDebugColors()
+end
+
+-- Restores one normal colour to its default and saves it.
+function Widgets.resetNormalColor(key)
+  normalColors[key] = normalColorDefaults[key]:clone()
+  saveDebugColors()
+end
+
+-- Restores one debug colour to its default and saves it. Its checkbox is left unchanged.
+function Widgets.resetDebugColor(key)
+  debugColors[key] = debugColorDefaults[key]:clone()
+  saveDebugColors()
+end
+
+-- The debug colour applies only while DEBUG mode, Diagnostic colors and its own checkbox are on; otherwise the normal colour is used.
+local function debugColor(key)
+  if Debug.colorsEnabled() and not debugColorDisabled[key] then return debugColors[key] end
+  return normalColors[key]
+end
+Widgets.debugColor = debugColor
+
+function Widgets.isDebugColorEnabled(key)
+  return not debugColorDisabled[key]
+end
+
+function Widgets.setDebugColorEnabled(key, enabled)
+  debugColorDisabled[key] = (not enabled) or nil
+end
+
+-- The debug colour applies only while DEBUG mode and Diagnostic colors are on; otherwise the normal colour is used.
 function soundPicker.usedColor()
-  return settings.debugModeEnabled and debugColors.usedSound or rgbm(1, 0.85, 0.2, 1)
+  return debugColor('usedSound')
 end
 
 -- The sound chosen for the alert being edited. It wins over the used colour, even when the same file is used elsewhere.
 function soundPicker.selectedColor()
-  return settings.debugModeEnabled and debugColors.selectedSound or rgbm(1, 0.5, 0, 1)
+  return debugColor('selectedSound')
 end
 
--- Draws a checkerboard slightly larger than the color button (like the picker's alpha preview), then the button on top.
-local function drawColorButton(id, color, flags)
-  local size = vec2(32, 20)
-  local pos = ui.getCursor()
-  local grow = size * (debugColors.buttonOverflow / 100)
-  local topLeft = pos - grow
-  local bottomRight = pos + size + grow
+-- The keyword row frame is always shown; its debug colour applies only while DEBUG mode and Diagnostic colors are on.
+function Widgets.rowFrameColor()
+  return debugColor('rowFrame')
+end
+
+-- Draws a checkerboard (used behind colours to show their transparency).
+local function drawChecker(topLeft, bottomRight)
   local square = 4
   local light = rgbm(0.8, 0.8, 0.8, 1)
   ui.drawRectFilled(topLeft, bottomRight, rgbm(0.5, 0.5, 0.5, 1))
@@ -342,15 +559,64 @@ local function drawColorButton(id, color, flags)
       end
     end
   end
+end
+
+-- Draws a checkerboard slightly larger than the color button (like the picker's alpha preview), then the button on top.
+local function drawColorButton(id, color, flags)
+  local size = vec2(32, 20)
+  local pos = ui.getCursor()
+  local grow = size * (debugColors.buttonOverflow / 100)
+  drawChecker(pos - grow, pos + size + grow)
   ui.colorButton(id, color, flags, size)
 end
 
-local function drawColorSetting(label, key)
-  ui.text(label)
+-- Read-only swatch of a colour at 3/4 of the editable button size, centred on its height. The checkerboard covers the whole button footprint so transparency shows at any alpha.
+local function drawColorSwatch(color)
+  local buttonSize = vec2(32, 20)
+  local size = vec2(24, 15)
+  local origin = ui.getCursor()
+  local pos = origin + vec2(0, (buttonSize.y - size.y) / 2)
+  drawChecker(origin, origin + buttonSize)
+  ui.drawRectFilled(pos, pos + size, color)
+  ui.dummy(buttonSize)
+end
+
+local function resetColorSetting(key)
+  settings[key] = colorDefaults[key]:clone()
+end
+
+local function isDefaultColor(key)
+  local c, d = settings[key], colorDefaults[key]
+  local eps = 0.001
+  return math.abs(c.r - d.r) < eps and math.abs(c.g - d.g) < eps and math.abs(c.b - d.b) < eps and math.abs(c.mult - d.mult) < eps
+end
+
+local function drawColorLabel(label, key)
+  local modified = not isDefaultColor(key)
+  if modified then ui.pushStyleColor(ui.StyleColor.Text, sliders.modifiedColor) end
+  Widgets.text(label)
+  if modified then ui.popStyleColor(1) end
   ui.sameLine()
+end
+
+local function drawColorLabel(label, key)
+  local modified = not isDefaultColor(key)
+  if modified then ui.pushStyleColor(ui.StyleColor.Text, sliders.modifiedColor) end
+  Widgets.text(label)
+  if modified then ui.popStyleColor(1) end
+  Widgets.settingTooltip(key, settings[key], colorDefaults[key])
+  ui.sameLine()
+end
+
+local function drawColorSetting(label, key)
+  drawColorLabel(label, key)
   drawColorButton('##color_' .. key, settings[key], ui.ColorPickerFlags.AlphaPreview)
+  Widgets.settingTooltip(key, settings[key], colorDefaults[key])
+  if ui.itemClicked(ui.MouseButton.Right, true) then
+    resetColorSetting(key)
+  end
   ui.itemPopup('##color_popup_' .. key, ui.MouseButton.Left, function()
-	ui.text('Choose ' .. label:lower())
+	Widgets.text(tr('Choose %s', label:lower()))
 	ui.colorPicker('##color_picker_' .. key, settings[key], bit.bor(
 	  ui.ColorPickerFlags.AlphaBar,
 	  ui.ColorPickerFlags.AlphaPreview,
@@ -360,11 +626,14 @@ local function drawColorSetting(label, key)
 end
 
 local function drawThemeColorSetting(label, key)
-  ui.text(label)
-  ui.sameLine()
+  drawColorLabel(label, key)
   drawColorButton('##color_' .. key, settings[key], ui.ColorPickerFlags.NoAlpha)
+  Widgets.settingTooltip(key, settings[key], colorDefaults[key])
+  if ui.itemClicked(ui.MouseButton.Right, true) then
+    resetColorSetting(key)
+  end
   ui.itemPopup('##color_popup_' .. key, ui.MouseButton.Left, function()
-	ui.text('Choose ' .. label:lower())
+	Widgets.text(tr('Choose %s', label:lower()))
 	local edited = ui.colorPicker('##color_picker_' .. key, settings[key], bit.bor(
 	  ui.ColorPickerFlags.NoAlpha,
 	  ui.ColorPickerFlags.PickerHueWheel
@@ -384,8 +653,11 @@ local function pushSettingsTheme()
   local button = rgbm(bgColor.r * 0.14, bgColor.g * 0.14, bgColor.b * 0.14, 0.92)
   local buttonHovered = rgbm(bgColor.r * 0.25, bgColor.g * 0.25, bgColor.b * 0.25, 0.96)
   local buttonActive = rgbm(bgColor.r * 0.35, bgColor.g * 0.35, bgColor.b * 0.35, 1)
-  ui.pushStyleColor(ui.StyleColor.ChildBg, settings.debugModeEnabled and debugColors.childBg or rgbm(0, 0, 0, 0))
-  ui.pushStyleColor(ui.StyleColor.ScrollbarBg, settings.debugModeEnabled and debugColors.scrollbarBg or rgbm(0.02, 0.02, 0.02, 0.53))
+  -- With Child background unticked in debug mode, the child area shows the normal band colour instead of letting the debug Background band show through.
+  local childBg = debugColor('childBg')
+  if Debug.colorsEnabled() and debugColorDisabled.childBg then childBg = normalColors.background end
+  ui.pushStyleColor(ui.StyleColor.ChildBg, childBg)
+  ui.pushStyleColor(ui.StyleColor.ScrollbarBg, debugColor('scrollbarBg'))
   ui.pushStyleColor(ui.StyleColor.FrameBg, frameBg)
   ui.pushStyleColor(ui.StyleColor.FrameBgHovered, frameHovered)
   ui.pushStyleColor(ui.StyleColor.FrameBgActive, frameActive)
@@ -400,7 +672,7 @@ local function pushSettingsTheme()
   ui.pushStyleColor(ui.StyleColor.HeaderActive, buttonActive)
   ui.pushStyleColor(ui.StyleColor.PopupBg, rgbm(bgColor.r * 0.1, bgColor.g * 0.1, bgColor.b * 0.1, 0.98))
   ui.pushStyleColor(ui.StyleColor.Border, rgbm(color.r, color.g, color.b, 0.28))
-  local grip = settings.debugModeEnabled and debugColors.resizeGrip or rgbm(color.r, color.g, color.b, 0.45)
+  local grip = debugColor('resizeGrip')
   ui.pushStyleColor(ui.StyleColor.ResizeGrip, grip)
   ui.pushStyleColor(ui.StyleColor.ResizeGripHovered, rgbm(grip.r, grip.g, grip.b, 0.8))
   ui.pushStyleColor(ui.StyleColor.ResizeGripActive, rgbm(grip.r, grip.g, grip.b, 1))
@@ -414,30 +686,78 @@ local function drawSoundFolderButton()
       if ok then
         soundFolderStatus = ''
       else
-        soundFolderStatus = 'Could not open the sounds folder: ' .. tostring(err)
-        ac.log(App.displayName .. ': ' .. soundFolderStatus)
-    Debug.warn(soundFolderStatus)
+        local message = 'Could not open the sounds folder: ' .. tostring(err)
+        ac.log(App.displayName .. ': ' .. message)
+        Debug.warn(message)
+        soundFolderStatus = tr('Could not open the sounds folder: %s', tostring(err))
       end
     else
-      soundFolderStatus = 'Sounds folder not found: ' .. soundFolder
-      ac.log(App.displayName .. ': ' .. soundFolderStatus)
+      local message = 'Sounds folder not found: ' .. soundFolder
+      ac.log(App.displayName .. ': ' .. message)
+      soundFolderStatus = tr('Sounds folder not found: %s', soundFolder)
     end
   end
   ui.popID()
   ui.sameLine()
-  ui.text('Open sounds folder')
-  if soundFolderStatus ~= '' then ui.textWrapped(soundFolderStatus) end
+  Widgets.text(tr('Open sounds folder'))
+  if soundFolderStatus ~= '' then Widgets.textWrapped(soundFolderStatus) end
 end
 
+local flagWidth, flagHeight = 50, 30
+local resetIconSize = flagHeight * 0.75
+
+local function drawLanguageSelector(id, label)
+  local language = modules.i18n.currentLanguage()
+  Widgets.text(label or tr('Language'))
+  ui.sameLine()
+  ui.setNextItemWidth(160)
+  if ui.beginCombo(id, language.name) then
+    for _, option in ipairs(modules.i18n.languages) do
+      if ui.selectable(option.name, option.code == language.code) then
+        modules.i18n.setLanguage(option.code)
+      end
+    end
+    ui.endCombo()
+  end
+  ui.sameLine()
+  ui.alignTextToFramePadding()
+  Widgets.text('Reset:')
+  ui.sameLine()
+  if ui.iconButton(ui.Icons.Reset, vec2(resetIconSize, resetIconSize), rgbm(1, 1, 1, 1), rgbm(0, 0, 0, 0)) then
+    modules.i18n.setLanguage('en')
+  end
+  ui.sameLine()
+  ui.image('flag_en.png', vec2(flagWidth, flagHeight))
+  if ui.itemClicked(ui.MouseButton.Left, true) then modules.i18n.setLanguage('en') end
+end
+
+-- Native title text cannot be coloured, so the marker is drawn in the title row, right after it.
+-- The offsets are estimates: adjust them after an in-game check.
+local titleMarkerColor = rgbm(1, 0.36, 0.2, 1)
+local titleMarkerStartX = 14
+local titleMarkerY = 2
+
+local function drawTitleMarker()
+  local cursorX, cursorY = ui.getCursorX(), ui.getCursorY()
+  ui.setCursorX(titleMarkerStartX + ui.windowTitleWidth() + 6)
+  ui.setCursorY(titleMarkerY)
+  ui.textColored('◉', titleMarkerColor)
+  ui.setCursorX(cursorX)
+  ui.setCursorY(cursorY)
+end
+
+Widgets.drawTitleMarker = drawTitleMarker
 Widgets.comboWasOpen = comboWasOpen
 Widgets.sliders = sliders
 Widgets.soundPicker = soundPicker
 Widgets.debugColors = debugColors
 Widgets.saveDebugColors = saveDebugColors
 Widgets.drawColorButton = drawColorButton
+Widgets.drawColorSwatch = drawColorSwatch
 Widgets.drawColorSetting = drawColorSetting
 Widgets.drawThemeColorSetting = drawThemeColorSetting
 Widgets.pushSettingsTheme = pushSettingsTheme
 Widgets.drawSoundFolderButton = drawSoundFolderButton
+Widgets.drawLanguageSelector = drawLanguageSelector
 
 return Widgets

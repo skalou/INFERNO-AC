@@ -1,5 +1,6 @@
 -- Shared keyword files: export, import, and server keyword lists.
 local modules = require('core.modules')
+local tr = modules.i18n.tr
 local Profiles = modules.profiles
 local Sharing = modules.sharing
 
@@ -35,7 +36,7 @@ Sharing.selectedServerKeywordSource = nil
 local function ensureSharedKeywordFolder()
   if io.dirExists(sharedKeywordFolder) then return true end
   if io.createDir(sharedKeywordFolder) and io.dirExists(sharedKeywordFolder) then return true end
-  Profiles.profileStatus = 'Could not create the shared keyword profiles folder.'
+  Profiles.profileStatus = tr('Could not create the shared keyword profiles folder.')
   ac.log(App.displayName .. ': ' .. Profiles.profileStatus .. ' ' .. sharedKeywordFolder)
   return false
 end
@@ -60,14 +61,14 @@ end
 
 local function exportSharedKeywordProfile(key, serverLabel, exportName)
   if not key then
-    Profiles.profileStatus = 'Connect to a server before exporting its keyword profile.'
+    Profiles.profileStatus = tr('Connect to a server before exporting its keyword profile.')
     return false
   end
   if not ensureSharedKeywordFolder() then return false end
   local profile = captureKeywordProfile()
   profile.info = sanitizeProfileInfo(Profiles.keywordProfiles[key] and Profiles.keywordProfiles[key].info) or newProfileInfo()
   if not validateKeywordProfile(profile) then
-    Profiles.profileStatus = 'Current keyword settings failed validation; no export was written.'
+    Profiles.profileStatus = tr('Current keyword settings failed validation; no export was written.')
     return false
   end
   local serverName = ac.getServerName() or ''
@@ -89,63 +90,63 @@ local function exportSharedKeywordProfile(key, serverLabel, exportName)
     checksum = checksum
   }) or nil
   if type(data) ~= 'string' or #data > maximumBackupSize then
-    Profiles.profileStatus = 'Shared keyword profile could not be prepared or exceeds the size limit.'
+    Profiles.profileStatus = tr('Shared keyword profile could not be prepared or exceeds the size limit.')
     return false
   end
   local safeBaseName = normalizeBackupName(exportName or '')
   if safeBaseName == '' then
-    Profiles.profileStatus = 'Enter a valid name for the shared file.'
+    Profiles.profileStatus = tr('Enter a valid name for the shared file.')
     return false
   end
   safeBaseName = safeBaseName:sub(1, 80)
   local filePath = sharedKeywordFolder .. '\\' .. safeBaseName .. '.json'
   if io.fileExists(filePath) and pendingOverwrite.export ~= safeBaseName then
     pendingOverwrite.export = safeBaseName
-    Profiles.profileStatus = 'A shared file named "' .. safeBaseName .. '.json" already exists. Confirm to overwrite it.'
+    Profiles.profileStatus = tr('A shared file named "%s.json" already exists. Confirm to overwrite it.', safeBaseName)
     return false
   end
   pendingOverwrite.export = nil
   local temporaryPath = filePath .. '.tmp'
   if not io.save(temporaryPath, data, true) then
-    Profiles.profileStatus = 'Could not write temporary shared keyword profile.'
+    Profiles.profileStatus = tr('Could not write temporary shared keyword profile.')
     return false
   end
   if io.fileSize(temporaryPath) ~= #data or io.load(temporaryPath) ~= data then
     if io.fileExists(temporaryPath) then io.deleteFile(temporaryPath) end
-    Profiles.profileStatus = 'Shared keyword profile readback verification failed.'
+    Profiles.profileStatus = tr('Shared keyword profile readback verification failed.')
     return false
   end
   if not io.move(temporaryPath, filePath, true) then
     if io.fileExists(temporaryPath) then io.deleteFile(temporaryPath) end
-    Profiles.profileStatus = 'Could not install the verified shared keyword profile.'
+    Profiles.profileStatus = tr('Could not install the verified shared keyword profile.')
     return false
   end
   Sharing.selectedSharedKeywordFile = safeBaseName .. '.json'
   refreshSharedKeywordFiles()
-  Profiles.profileStatus = 'Keyword profile exported for sharing: ' .. Sharing.selectedSharedKeywordFile
+  Profiles.profileStatus = tr('Keyword profile exported for sharing: %s', Sharing.selectedSharedKeywordFile)
   return true
 end
 
 local function readSharedKeywordFile(filePath)
   local data = io.fileExists(filePath) and io.load(filePath) or nil
   if type(data) ~= 'string' or #data == 0 or #data > maximumBackupSize then
-    return nil, 'Shared keyword file is missing, empty, or too large.'
+    return nil, tr('Shared keyword file is missing, empty, or too large.')
   end
   local parsedOk, envelope = pcall(JSON.parse, data)
   if not parsedOk or type(envelope) ~= 'table' or envelope.format ~= sharedKeywordFormat
       or envelope.formatVersion ~= sharedKeywordFormatVersion or type(envelope.appVersion) ~= 'string'
       or type(envelope.payload) ~= 'string' or type(envelope.checksum) ~= 'string' then
-    return nil, 'Shared keyword file has an unsupported or invalid format.'
+    return nil, tr('Shared keyword file has an unsupported or invalid format.')
   end
   local expectedChecksum = makeBackupChecksum(envelope.appVersion, envelope.formatVersion, envelope.payload)
   if not expectedChecksum or expectedChecksum ~= envelope.checksum then
-    return nil, 'Shared keyword file failed its integrity check.'
+    return nil, tr('Shared keyword file failed its integrity check.')
   end
   local payloadOk, payload = pcall(JSON.parse, envelope.payload)
   if not payloadOk or type(payload) ~= 'table' or type(payload.serverLabel) ~= 'string'
       or #payload.serverLabel > 256 or payload.serverLabel:find('%c')
       or not validateKeywordProfile(payload.profile) then
-    return nil, 'Shared keyword file contains invalid keyword settings.'
+    return nil, tr('Shared keyword file contains invalid keyword settings.')
   end
   return payload
 end
@@ -160,7 +161,7 @@ local function stageSharedKeywordImport(fileName, targetKey, targetLabel)
   if not targetKey or not isListedFile or not fileName:match('%.json$')
       or fileName:find('..', 1, true) or fileName:find('/', 1, true)
       or fileName:find('\\', 1, true) then
-    Profiles.profileStatus = 'Select a valid shared keyword file and connect to a server.'
+    Profiles.profileStatus = tr('Select a valid shared keyword file and connect to a server.')
     return false
   end
   local filePath = sharedKeywordFolder .. '\\' .. fileName
@@ -176,7 +177,7 @@ local function stageSharedKeywordImport(fileName, targetKey, targetLabel)
     targetLabel = targetLabel,
     profile = payload.profile
   }
-  Profiles.profileStatus = 'Shared file validated. Confirm to replace the keyword profile for the current server.'
+  Profiles.profileStatus = tr('Shared file validated. Confirm to replace the keyword profile for the current server.')
   return true
 end
 
@@ -184,7 +185,7 @@ local function applyStagedSharedKeywordImport(targetKey)
   if not targetKey or not Sharing.pendingSharedKeywordImport then return false end
   if targetKey ~= Sharing.pendingSharedKeywordImport.targetKey then
     Sharing.pendingSharedKeywordImport = nil
-    Profiles.profileStatus = 'Server context changed; prepare the import again for the current server.'
+    Profiles.profileStatus = tr('Server context changed; prepare the import again for the current server.')
     return false
   end
   if not settings.useServerKeywordProfiles then
@@ -196,12 +197,12 @@ local function applyStagedSharedKeywordImport(targetKey)
   Profiles.keywordProfiles[targetKey] = importedProfile
   settings.keywordProfiles = stringify(Profiles.keywordProfiles, true)
   if not applyKeywordProfile(importedProfile) then
-    Profiles.profileStatus = 'Shared keyword profile could not be applied.'
+    Profiles.profileStatus = tr('Shared keyword profile could not be applied.')
     return false
   end
   Profiles.activeKeywordProfileKey = targetKey
   Profiles.keywordProfileContextInitialized = true
-  Profiles.profileStatus = 'Imported ' .. Sharing.pendingSharedKeywordImport.fileName .. ' into the current server profile.'
+  Profiles.profileStatus = tr('Imported %s into the current server profile.', Sharing.pendingSharedKeywordImport.fileName)
   Sharing.pendingSharedKeywordImport = nil
   return true
 end
@@ -216,7 +217,7 @@ end
 local function readPlainKeywordFile(filePath)
   local data = io.load(filePath)
   if type(data) ~= 'string' or #data == 0 or #data > maximumBackupSize then
-    return nil, 'Keyword text file is empty or too large.'
+    return nil, tr('Keyword text file is empty or too large.')
   end
   local entries = {}
   local seen = {}
@@ -238,15 +239,15 @@ end
 
 local function formatProfileInfo(info, fallbackServer)
   local serverName = info and info.serverName ~= '' and info.serverName or fallbackServer
-  local creator = info and info.createdBy ~= '' and info.createdBy or 'unknown player'
-  local createdText = info and os.date('%d/%m/%Y %H:%M', info.createdAt) or 'date unknown'
+  local creator = info and info.createdBy ~= '' and info.createdBy or tr('unknown player')
+  local createdText = info and os.date('%d/%m/%Y %H:%M', info.createdAt) or tr('date unknown')
   return serverName .. ' - ' .. creator .. ' - ' .. createdText
 end
 
 local function describeServerKeywordFile(fileName)
-  if not fileName:match('%.json$') then return 'Text file: ' .. fileName end
+  if not fileName:match('%.json$') then return tr('Text file: %s', fileName) end
   local payload = readSharedKeywordFile(serverKeywordFolder .. '\\' .. fileName)
-  if not payload then return 'Invalid file: ' .. fileName end
+  if not payload then return tr('Invalid file: %s', fileName) end
   local serverName = cleanProfileText(payload.serverName, 256)
   if serverName == '' then serverName = cleanProfileText(payload.serverLabel, 256) end
   return formatProfileInfo(sanitizeProfileInfo(payload.profile.info), serverName)
@@ -291,15 +292,15 @@ local function refreshServerKeywordSources()
 end
 
 local function resolveServerKeywordSource(source)
-  if not source then return nil, 'Select a server keyword list first.' end
+  if not source then return nil, tr('Select a server keyword list first.') end
   local profileKey = source.id:match('^profile:(.+)$')
   if profileKey then
     local profile = Profiles.keywordProfiles[profileKey]
-    if not validateKeywordProfile(profile) then return nil, 'The saved profile is missing or invalid.' end
+    if not validateKeywordProfile(profile) then return nil, tr('The saved profile is missing or invalid.') end
     return profile
   end
   local fileName = source.id:match('^file:(.+)$')
-  if not fileName then return nil, 'Unknown keyword list.' end
+  if not fileName then return nil, tr('Unknown keyword list.') end
   local filePath = serverKeywordFolder .. '\\' .. fileName
   if fileName:match('%.json$') then
     local payload, readError = readSharedKeywordFile(filePath)
@@ -307,7 +308,7 @@ local function resolveServerKeywordSource(source)
     return payload.profile
   end
   if fileName:match('%.txt$') then return readPlainKeywordFile(filePath) end
-  return nil, 'Unsupported keyword list file.'
+  return nil, tr('Unsupported keyword list file.')
 end
 
 local function applyServerKeywordSource(source, replace)
@@ -350,11 +351,11 @@ local function applyServerKeywordSource(source, replace)
   saveKeywords(keywords)
 
   if replace then
-    Profiles.profileStatus = string.format('Keyword list replaced from %s: %d keyword(s), %d duplicate or empty line(s) removed.', source.label, kept, skipped)
+    Profiles.profileStatus = string.format(tr('Keyword list replaced from %s: %d keyword(s), %d duplicate or empty line(s) removed.'), source.label, kept, skipped)
   else
-    Profiles.profileStatus = string.format('Keywords added from %s: %d new, %d already present or empty.', source.label, kept, skipped)
+    Profiles.profileStatus = string.format(tr('Keywords added from %s: %d new, %d already present or empty.'), source.label, kept, skipped)
   end
-  if capped then Profiles.profileStatus = Profiles.profileStatus .. ' The 256 keyword limit was reached.' end
+  if capped then Profiles.profileStatus = Profiles.profileStatus .. tr(' The 256 keyword limit was reached.') end
   return true
 end
 

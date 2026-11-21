@@ -3,11 +3,13 @@ local modules = require('core.modules')
 local Sounds = modules.sounds
 local Profiles = modules.profiles
 local AlertsTab = modules.alertsTab
+local tr = modules.i18n.tr
 
 local defaultAlertSoundFile = modules.paths.defaultAlertSoundFile
 local settings = modules.settings.settings
 local playAlertSound = modules.sounds.playAlertSound
 local isSoundTestPlaying = modules.sounds.isSoundTestPlaying
+local Widgets = modules.widgets
 local sliders = modules.widgets.sliders
 local soundPicker = modules.widgets.soundPicker
 local drawSoundFolderButton = modules.widgets.drawSoundFolderButton
@@ -23,35 +25,40 @@ local keywordOptionStore = modules.keywords.keywordOptionStore
 local captureKeywordProfile = modules.profiles.captureKeywordProfile
 local saveKeywordProfile = modules.profiles.saveKeywordProfile
 
-local draggingKeywordIndex = nil
+local Debug = modules.debug.Debug
+
+local keywordDrag = modules.listDrag.new()
+AlertsTab.keywordDrag = keywordDrag
+local keywordRowPadding = 6
 
 local function drawAlertsTab()
-  if sliders.checkbox('Play alert sound', settings.soundEnabled, sliders.defaults.soundEnabled) then
+  if sliders.checkbox(tr('Play alert sound'), settings.soundEnabled, sliders.defaults.soundEnabled, 'soundEnabled') then
 	settings.soundEnabled = not settings.soundEnabled
   end
-  settings.masterVolume = sliders.withDefault('Master volume', settings.masterVolume, 0, 300, '%.0f%%', sliders.defaults.masterVolume, 1)
+  settings.masterVolume = sliders.withDefault(tr('Master volume'), settings.masterVolume, 0, 300, '%.0f%%', sliders.defaults.masterVolume, 1, 'masterVolume', ui.Icons.Levels)
   drawSoundFolderButton()
-  ui.textWrapped('Available sounds: .wav and .mp3 files in the sounds folder and its subfolders. If a selected file is missing or cannot be loaded, ' .. defaultAlertSoundFile .. ' is used instead.')
+  Widgets.textWrapped(tr('Available sounds: .wav and .mp3 files in the sounds folder and its subfolders. If a selected file is missing or cannot be loaded, %s is used instead.', defaultAlertSoundFile))
   if not Sounds.alertSoundFileSet[defaultAlertSoundFile] then
-    ui.textWrapped('Warning: the default sound ' .. defaultAlertSoundFile .. ' is missing from the sounds folder. Alerts with a missing sound will be silent.')
+    Widgets.textWrapped(tr('Warning: the default sound %s is missing from the sounds folder. Alerts with a missing sound will be silent.', defaultAlertSoundFile))
   end
   ui.separator()
-  if sliders.checkbox('Alert when my name is mentioned', settings.mentionMe, sliders.defaults.mentionMe) then
+  if sliders.checkbox(tr('Alert when my name is mentioned'), settings.mentionMe, sliders.defaults.mentionMe, 'mentionMe') then
 	settings.mentionMe = not settings.mentionMe
   end
   ui.separator()
-  ui.header('Alert keywords (priority order)')
-  ui.textWrapped('When several entries match, the first one in this list selects the sound. Drag the handle to reorder. The player mention and friend entries can be moved, muted or hidden, but not deleted.')
+  ui.header(tr('Alert keywords (priority order)'))
+  Widgets.textWrapped(tr('When several entries match, the first one in this list selects the sound. Drag the handle to reorder. The player mention and friend entries can be moved, muted or hidden, but not deleted.'))
   local keywords = parseKeywords()
   local keywordSoundAssignments = loadKeywordSoundAssignments()
   local mutedKeywords = loadMutedKeywords()
   local keywordOptions = keywordOptionStore.load()
   local keywordRowCenters = {}
+  local keywordRowBounds = {}
   local keywordSettingsChanged = false
   local removedKeywordIndex = nil
   local insertAfterIndex = nil
   if #keywords == 0 then
-	ui.text('No alert keywords yet.')
+	Widgets.text(tr('No alert keywords yet.'))
 	if ui.iconButton(ui.Icons.Plus, vec2(22, 22)) then
 	  insertAfterIndex = 0
 	end
@@ -60,27 +67,37 @@ local function drawAlertsTab()
 	ui.pushID('keyword' .. index)
 	local specialPrefix = keyword == specialAlertKeys.player and 'mention' or (keyword == specialAlertKeys.friend and 'friend') or nil
 	local isSpecial = specialPrefix ~= nil
-	local fieldText = specialAlertKeys.labels[keyword] or keyword
+	local fieldText = specialAlertKeys.labels[keyword] and tr(specialAlertKeys.labels[keyword]) or keyword
 	if ui.iconButton(ui.Icons.Plus, vec2(22, 22)) then
 	  insertAfterIndex = index - 1
 	end
 	ui.separator()
 	local rowTop = ui.getCursorY()
+	local rowLeft = ui.getCursorX()
+	local rowRight = rowLeft + ui.availableSpaceX()
+	ui.indent(keywordRowPadding)
+	ui.dummy(vec2(0, keywordRowPadding))
 	ui.iconButton(ui.Icons.Menu, vec2(22, 22))
-	if not draggingKeywordIndex and ui.itemActive() and ui.mouseDown() then
-	  draggingKeywordIndex = index
+	if ui.itemActive() and ui.mouseDown() then
+	  keywordDrag:press(index, ui.mouseLocalPos().y - ui.getScrollY())
 	end
 	ui.sameLine()
-	ui.text('#' .. index)
+	Widgets.text('#' .. index)
 	ui.sameLine()
 	if isSpecial then
 	  ui.dummy(vec2(22, 22))
 	elseif ui.iconButton(ui.Icons.Trash, vec2(22, 22)) then
 	  removedKeywordIndex = index
 	end
-	ui.text(isSpecial and 'Built-in alert' or 'Keyword or trigger phrase')
+	Widgets.text(isSpecial and tr('Built-in alert') or tr('Keyword or trigger phrase'))
+	if isSpecial then
+	  ui.sameLine()
+	  -- Befriend is a placeholder for the friends alert; change it when a dedicated icon is chosen.
+	  local isPlayerAlert = keyword == specialAlertKeys.player
+	  ui.icon(isPlayerAlert and ui.Icons.Driver or ui.Icons.Befriend, vec2(18, 18), isPlayerAlert and settings.playerColor or settings.friendColor)
+	end
 	ui.sameLine()
-	local keywordWidth = math.max(40, ui.availableSpaceX())
+	local keywordWidth = math.max(40, ui.availableSpaceX() - keywordRowPadding)
 	local keywordContentWidth = math.max(keywordWidth, ui.measureText(fieldText).x + 24)
 	ui.pushStyleVar(ui.StyleVar.WindowPadding, vec2(0, 0))
 	ui.setNextWindowContentSize(vec2(keywordContentWidth, 0))
@@ -188,10 +205,16 @@ local function drawAlertsTab()
 	  keywordSettingsChanged = true
 	end
 	ui.sameLine()
-	local keywordSoundWidth = ui.availableSpaceX()
+	local keywordSoundWidth = ui.availableSpaceX() - keywordRowPadding
 	soundPicker.drawFile('##keywordSound', selectedSound, keywordSoundWidth, index, nil, soundPicker.usedSounds(keywordSoundAssignments), setSelectedSound)
-	keywordRowCenters[index] = (rowTop + ui.getCursorY() + 22) / 2
+	ui.dummy(vec2(0, keywordRowPadding))
+	local rowBottom = ui.getCursorY()
+	local frameColor = modules.widgets.rowFrameColor()
+	ui.drawRect(vec2(rowLeft, rowTop), vec2(rowRight, rowBottom), frameColor, 0, ui.CornerFlags.All, 1)
+	keywordRowCenters[index] = (rowTop + rowBottom) / 2
+	keywordRowBounds[index] = { left = rowLeft, right = rowRight, top = rowTop, bottom = rowBottom }
 	ui.unindent(22)
+	ui.unindent(keywordRowPadding)
 	ui.separator()
 	ui.popID()
   end
@@ -210,21 +233,49 @@ local function drawAlertsTab()
 	keywordSettingsChanged = true
   end
 
-  if draggingKeywordIndex and ui.mouseDown() and #keywords > 1 then
-	local mouseY = ui.mouseLocalPos().y
-	local previousIndex = draggingKeywordIndex - 1
-	local nextIndex = draggingKeywordIndex + 1
-	if previousIndex >= 1 and mouseY < keywordRowCenters[previousIndex] then
-	  keywords[draggingKeywordIndex], keywords[previousIndex] = keywords[previousIndex], keywords[draggingKeywordIndex]
-	  draggingKeywordIndex = previousIndex
+  if removedKeywordIndex or insertAfterIndex then
+	keywordDrag:reset()
+  elseif keywordDrag.index then
+	local wasMoved, wasScrolling, wasIndex = keywordDrag.moved, keywordDrag.scrolling, keywordDrag.index
+	local heldBounds = keywordRowBounds[wasIndex]
+	local currentScrollY = ui.getScrollY()
+	-- ui.mouseLocalPos() includes the scroll; the drag wants the pointer relative to the visible window.
+	local moves, scrollY = keywordDrag:update({
+	  mouseDown = ui.mouseDown(),
+	  pointerY = ui.mouseLocalPos().y - currentScrollY,
+	  windowHeight = ui.windowHeight(),
+	  scrollY = currentScrollY,
+	  scrollMaxY = ui.getScrollMaxY(),
+	  dt = ui.deltaTime(),
+	  centers = keywordRowCenters,
+	})
+	if keywordDrag.moved and not wasMoved then
+	  Debug.trace(string.format('Keyword drag: start #%d', wasIndex))
+	end
+	for _, move in ipairs(moves) do
+	  keywords[move[1]], keywords[move[2]] = keywords[move[2]], keywords[move[1]]
 	  keywordSettingsChanged = true
-	elseif nextIndex <= #keywords and mouseY > keywordRowCenters[nextIndex] then
-	  keywords[draggingKeywordIndex], keywords[nextIndex] = keywords[nextIndex], keywords[draggingKeywordIndex]
-	  draggingKeywordIndex = nextIndex
-	  keywordSettingsChanged = true
+	  Debug.trace(string.format('Keyword drag: #%d -> #%d', move[1], move[2]))
+	end
+	if keywordDrag.scrolling ~= wasScrolling then
+	  Debug.trace(keywordDrag.scrolling and 'Keyword drag: auto-scroll start' or 'Keyword drag: auto-scroll stop')
+	end
+	if scrollY then
+	  ui.setScrollY(scrollY, false, false)
+	end
+	if keywordDrag.itemY and heldBounds then
+	  -- The floating frame follows the pointer while the list rows swap around it.
+	  local color = modules.widgets.rowFrameColor()
+	  local halfHeight = (heldBounds.bottom - heldBounds.top) / 2
+	  local frameTop = vec2(heldBounds.left, keywordDrag.itemY - halfHeight)
+	  local frameBottom = vec2(heldBounds.right, keywordDrag.itemY + halfHeight)
+	  ui.drawRectFilled(frameTop, frameBottom, rgbm(color.r, color.g, color.b, 0.15), 0)
+	  ui.drawRect(frameTop, frameBottom, color, 0, ui.CornerFlags.All, 3)
+	end
+	if not keywordDrag.index and wasMoved then
+	  Debug.trace(string.format('Keyword drag: dropped at #%d', wasIndex))
 	end
   end
-  if not ui.mouseDown() then draggingKeywordIndex = nil end
   if keywordSettingsChanged then
 	local activeKeywords = {}
 	for _, keyword in ipairs(keywords) do

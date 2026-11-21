@@ -3,7 +3,7 @@
 const fs = require('fs'); const path = require('path');
 const { analyze } = require('./analyze');
 const dir = process.argv[2];
-const origGlobals = new Set(['ac','ipairs','io','rgbm','os','string','tostring','pcall','math','ui','stringify','table','type','pairs','vec2','tonumber','JSON','bit','script','require','windowMain','windowConfig','windowDev']);
+const origGlobals = new Set(['ac','ipairs','io','rgbm','os','select','string','tostring','pcall','math','ui','stringify','table','type','pairs','vec2','tonumber','JSON','bit','script','require','setmetatable','windowMain','windowConfig','windowDev']);
 let bad = 0;
 const skipDirs = new Set(['tools', 'node_modules', '.git', 'sounds', 'session-state']);
 function walk(d) { return fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? (skipDirs.has(e.name) ? [] : walk(path.join(d, e.name))) : e.name.endsWith('.lua') ? [path.join(d, e.name)] : []); }

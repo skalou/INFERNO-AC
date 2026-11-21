@@ -1,5 +1,6 @@
 -- Alerts triggered this session (memory only).
 local modules = require('core.modules')
+local tr = modules.i18n.tr
 local Alert = modules.alert
 local History = modules.history
 
@@ -23,7 +24,7 @@ end
 -- A newer popup replaces the one still on screen, so the older entry gets a note.
 function alertHistory.popupReplaced()
   if alertHistory.current and Alert.alertTimeLeft > 0 then
-    alertHistory.addEvent(alertHistory.current, 'Replaced on screen by a newer alert')
+    alertHistory.addEvent(alertHistory.current, tr('Replaced on screen by a newer alert'))
   end
 end
 
@@ -33,8 +34,8 @@ function alertHistory.clear()
 end
 
 function alertHistory.formatEntry(entry)
-  local visual = entry.hidden and 'no popup' or 'popup'
-  local audio = entry.muted and 'muted' or 'sound'
+  local visual = entry.hidden and tr('no popup') or tr('popup')
+  local audio = entry.muted and tr('muted') or tr('sound')
   local lines = { entry.time .. ' [' .. entry.trigger .. '] ' .. entry.author .. ' : ' .. entry.message, '  ' .. visual .. ' | ' .. audio .. ': ' .. entry.soundName }
   for _, event in ipairs(entry.events) do
     table.insert(lines, '  ' .. event.time .. '  ' .. event.text)

@@ -1,5 +1,6 @@
 -- Settings snapshots, backup files, per-server auto-save, and resets.
 local modules = require('core.modules')
+local tr = modules.i18n.tr
 local Sounds = modules.sounds
 local Profiles = modules.profiles
 local Backup = modules.backup
@@ -23,6 +24,7 @@ local sliders = modules.widgets.sliders
 local invalidateKeywordCaches = modules.keywords.invalidateKeywordCaches
 local getMainAppWindow = modules.windows.getMainAppWindow
 local resetMainWindowGeometry = modules.windows.resetMainWindowGeometry
+local resetWindowGeometry = modules.windows.resetWindowGeometry
 local applyBackupWindowGeometry = modules.windows.applyBackupWindowGeometry
 
 Backup.backupFolderStatus = ''
@@ -42,7 +44,7 @@ local function resetAudioSettings()
   settings.mutedKeywords = ''
   settings.keywordOptions = ''
   stopCurrentSound()
-  Profiles.profileStatus = 'Audio settings reset to defaults.'
+  Profiles.profileStatus = tr('Audio settings reset to defaults.')
 end
 
 local function resetAlertAppearanceSettings()
@@ -52,7 +54,7 @@ local function resetAlertAppearanceSettings()
   settings.hideWhenNotHovered = false
   settings.backgroundEnabled = false
   settings.outlineThicknessPercent = 8
-  settings.softOutline = false
+  settings.softOutline = true
   settings.textColor = rgbm(1, 102 / 255, 134 / 255, 242 / 255)
   settings.authorColor = rgbm(1, 190 / 255, 80 / 255, 1)
   settings.playerColor = rgbm(0.3, 1, 0.3, 1)
@@ -62,7 +64,7 @@ local function resetAlertAppearanceSettings()
   settings.accentColor = rgbm(97 / 255, 138 / 255, 81 / 255, 198 / 255)
   settings.themeColor = rgbm(97 / 255, 138 / 255, 81 / 255, 1)
   settings.themeBgColor = rgbm(97 / 255, 138 / 255, 81 / 255, 1)
-  Profiles.profileStatus = 'Alert appearance reset to defaults.'
+  Profiles.profileStatus = tr('Alert appearance reset to defaults.')
 end
 
 local function resetKeywordSettings()
@@ -78,7 +80,7 @@ local function resetKeywordSettings()
   Profiles.activeKeywordProfileKey = nil
   Profiles.keywordProfileContextInitialized = false
   invalidateKeywordCaches()
-  Profiles.profileStatus = 'Keyword settings reset to defaults.'
+  Profiles.profileStatus = tr('Keyword settings reset to defaults.')
 end
 
 local function captureAllSettings()
@@ -160,7 +162,7 @@ local function applyAllSettings(profile, validateOnly)
 	if not isFiniteNumber(profile[key]) then return false end
   end
   if profile.textSize < 8 or profile.textSize > 96
-	  or profile.duration < 1 or profile.duration > 10
+	  or profile.duration < 0.1 or profile.duration > 10
 	  or profile.opacity < 0 or profile.opacity > 100
 	  or profile.outlineThicknessPercent < 0
 	  or profile.outlineThicknessPercent > maxOutlineScale * 100 / 8
@@ -237,7 +239,7 @@ local defaultSettingsProfile = {
   hideWhenNotHovered = false,
   backgroundEnabled = false,
   outlineThicknessPercent = 8,
-  softOutline = false,
+  softOutline = true,
 	themeColor = { 97 / 255, 138 / 255, 81 / 255, 1 },
 		themeBgColor = { 97 / 255, 138 / 255, 81 / 255, 1 },
   textColor = { 1, 102 / 255, 134 / 255, 242 / 255 },
@@ -259,10 +261,10 @@ local function ensureBackupFolder(folder)
   folder = folder or backupFolder
   if io.dirExists(folder) then return true end
   if io.createDir(folder) and io.dirExists(folder) then
-	Backup.backupFolderStatus = 'Settings backup folder created.'
+	Backup.backupFolderStatus = tr('Settings backup folder created.')
 	return true
   end
-  Backup.backupFolderStatus = 'Could not create the settings backup folder.'
+  Backup.backupFolderStatus = tr('Could not create the settings backup folder.')
   ac.log(App.displayName .. ': ' .. Backup.backupFolderStatus .. ' ' .. folder)
   return false
 end
@@ -286,9 +288,9 @@ local function refreshBackupList()
 	return a:lower() < b:lower()
   end)
   if backupCount == 0 then
-	Backup.backupFolderStatus = 'No settings backups found. Save current settings to create one.'
+	Backup.backupFolderStatus = tr('No settings backups found. Save current settings to create one.')
   else
-	Backup.backupFolderStatus = backupCount .. ' settings backup(s) found.'
+	Backup.backupFolderStatus = tr('%d settings backup(s) found.', backupCount)
   end
 end
 
@@ -332,18 +334,18 @@ local function decodeBackupData(data)
   local parsedOk, envelope = pcall(JSON.parse, data)
   if not parsedOk or type(envelope) ~= 'table' or envelope.format ~= backupFormat
 	  or envelope.formatVersion ~= backupFormatVersion then
-	return nil, 'Not an INFERNO ' .. appVersion .. ' settings backup (IsuChat Alert and older backups are not supported).'
+	return nil, tr('Not an INFERNO %s settings backup (IsuChat Alert and older backups are not supported).', appVersion)
   end
   if type(envelope.appVersion) ~= 'string' or type(envelope.payload) ~= 'string' or #envelope.payload == 0
 	  or #envelope.payload > maximumBackupSize or type(envelope.checksum) ~= 'string' then
-	return nil, 'Backup integrity metadata is invalid.'
+	return nil, tr('Backup integrity metadata is invalid.')
   end
   local expectedChecksum = makeBackupChecksum(envelope.appVersion, envelope.formatVersion, envelope.payload)
   if not expectedChecksum or expectedChecksum ~= envelope.checksum then
-	return nil, 'Backup integrity check failed; the file may be damaged.'
+	return nil, tr('Backup integrity check failed; the file may be damaged.')
   end
   local payloadOk, profile = pcall(JSON.parse, envelope.payload)
-  if not payloadOk or type(profile) ~= 'table' then return nil, 'Backup payload is damaged or invalid.' end
+  if not payloadOk or type(profile) ~= 'table' then return nil, tr('Backup payload is damaged or invalid.') end
   return profile, envelope.appVersion
 end
 
@@ -416,7 +418,7 @@ local lastServerBackupData = {}
 local function saveServerBackup(serverName, onlyIfChanged)
   serverName = serverName or getServerName()
   if not serverName then
-    Profiles.profileStatus = 'No active server session. Server backups are only available during races.'
+    Profiles.profileStatus = tr('No active server session. Server backups are only available during races.')
     return false
   end
 
@@ -430,13 +432,13 @@ local function saveServerBackup(serverName, onlyIfChanged)
     snapshot[key] = nil
   end
   if not applyAllSettings(snapshot, true) then
-    Profiles.profileStatus = 'Current settings failed validation; no file was written.'
+    Profiles.profileStatus = tr('Current settings failed validation; no file was written.')
     return false
   end
 
   local data = encodeBackup(snapshot)
   if not data then
-    Profiles.profileStatus = 'Server backup could not be prepared or exceeds the size limit.'
+    Profiles.profileStatus = tr('Server backup could not be prepared or exceeds the size limit.')
     return false
   end
 
@@ -446,19 +448,19 @@ local function saveServerBackup(serverName, onlyIfChanged)
   local serverKey = (serverAddress and serverAddress ~= '') and (serverAddress .. '_' .. tostring(ac.getServerPortTCP())) or serverName
   local filePath = backupFilePath(serverKey, true)
   if not io.save(filePath, data, true) then
-    Profiles.profileStatus = 'Could not write server backup for "' .. serverName .. '".'
+    Profiles.profileStatus = tr('Could not write server backup for "%s".', serverName)
     return false
   end
 
   lastServerBackupData[serverName] = data
-  Profiles.profileStatus = 'Settings auto-saved for server: ' .. serverName
+  Profiles.profileStatus = tr('Settings auto-saved for server: %s', serverName)
   return true
 end
 
 local function loadServerBackup(serverName)
   serverName = serverName or getServerName()
   if not serverName then
-    Profiles.profileStatus = 'No active server session. Cannot load server-specific settings.'
+    Profiles.profileStatus = tr('No active server session. Cannot load server-specific settings.')
     return false
   end
 
@@ -466,19 +468,19 @@ local function loadServerBackup(serverName)
   local serverKey = (serverAddress and serverAddress ~= '') and (serverAddress .. '_' .. tostring(ac.getServerPortTCP())) or serverName
   local filePath = backupFilePath(serverKey, true)
   if not filePath or not io.fileExists(filePath) then
-    Profiles.profileStatus = 'No saved settings found for this server.'
+    Profiles.profileStatus = tr('No saved settings found for this server.')
     return false
   end
 
   local data = io.load(filePath)
   if type(data) ~= 'string' or #data == 0 then
-    Profiles.profileStatus = 'Could not load server backup file.'
+    Profiles.profileStatus = tr('Could not load server backup file.')
     return false
   end
 
   local profile, decodeError = decodeBackupData(data)
   if not profile then
-    Profiles.profileStatus = 'Server backup decoding failed: ' .. (decodeError or 'unknown error')
+    Profiles.profileStatus = tr('Server backup decoding failed: %s', decodeError or tr('unknown error'))
     return false
   end
 
@@ -488,15 +490,15 @@ local function loadServerBackup(serverName)
 
   local missingFiles = getMissingMusicFiles(profile)
   if #missingFiles > 0 then
-    Profiles.profileStatus = 'Warning: Missing sound files in server config: ' .. table.concat(missingFiles, ', ')
+    Profiles.profileStatus = tr('Warning: Missing sound files in server config: %s', table.concat(missingFiles, ', '))
   else
-    Profiles.profileStatus = 'Server settings loaded successfully.'
+    Profiles.profileStatus = tr('Server settings loaded successfully.')
   end
 
   if applyAllSettings(profile, false) then
     return true
   else
-    Profiles.profileStatus = 'Server settings failed to apply.'
+    Profiles.profileStatus = tr('Server settings failed to apply.')
     return false
   end
 end
@@ -504,15 +506,15 @@ end
 local function saveSettingsBackup()
   local safeName = normalizeBackupName(settings.backupName)
   if safeName:lower() == 'default' then
-    Profiles.profileStatus = 'The built-in Default profile cannot be overwritten.'
+    Profiles.profileStatus = tr('The built-in Default profile cannot be overwritten.')
     return false
   end
   if safeName == '' then
-	Profiles.profileStatus = 'Enter a valid backup name.'
+	Profiles.profileStatus = tr('Enter a valid backup name.')
 	return false
   end
 	if #safeName > 64 then
-	Profiles.profileStatus = 'Backup name is empty or longer than 64 safe characters.'
+	Profiles.profileStatus = tr('Backup name is empty or longer than 64 safe characters.')
 	return false
 	end
 	if not ensureBackupFolder() then
@@ -521,42 +523,42 @@ local function saveSettingsBackup()
   end
   local snapshot = captureAllSettings()
 	if not applyAllSettings(snapshot, true) then
-	  Profiles.profileStatus = 'Current settings failed validation; no file was written.'
+	  Profiles.profileStatus = tr('Current settings failed validation; no file was written.')
     return false
   end
 	local data = encodeBackup(snapshot)
 	if not data then
-	Profiles.profileStatus = 'Backup could not be prepared or exceeds the size limit.'
+	Profiles.profileStatus = tr('Backup could not be prepared or exceeds the size limit.')
 	return false
   end
 	local filePath = backupFilePath(safeName)
 	if io.fileExists(filePath) and pendingOverwrite.backup ~= safeName then
 	  pendingOverwrite.backup = safeName
-	  Profiles.profileStatus = 'A backup named "' .. safeName .. '" already exists. Confirm to overwrite it.'
+	  Profiles.profileStatus = tr('A backup named "%s" already exists. Confirm to overwrite it.', safeName)
 	  return false
 	end
 	pendingOverwrite.backup = nil
 	local temporaryPath = filePath .. '.tmp'
 	if not io.save(temporaryPath, data, true) then
-	Profiles.profileStatus = 'Could not write temporary backup file for "' .. safeName .. '".'
+	Profiles.profileStatus = tr('Could not write temporary backup file for "%s".', safeName)
 	return false
 	end
 	if io.fileSize(temporaryPath) ~= #data or io.load(temporaryPath) ~= data then
 	if io.fileExists(temporaryPath) then io.deleteFile(temporaryPath) end
-	Profiles.profileStatus = 'Backup readback verification failed; previous backup preserved.'
+	Profiles.profileStatus = tr('Backup readback verification failed; previous backup preserved.')
 	return false
 	end
 	if not io.move(temporaryPath, filePath, true) then
 	if io.fileExists(temporaryPath) then io.deleteFile(temporaryPath) end
-	Profiles.profileStatus = 'Could not install the verified backup; previous backup preserved.'
+	Profiles.profileStatus = tr('Could not install the verified backup; previous backup preserved.')
 	return false
 	end
   settings.backupName = safeName
   Backup.selectedBackupToLoad = safeName
   refreshBackupList()
-	Profiles.profileStatus = 'Backup saved and verified: ' .. safeName .. ' (app ' .. appVersion .. ').'
+	Profiles.profileStatus = tr('Backup saved and verified: %s (app %s).', safeName, appVersion)
 	if not snapshot.mainWindowPosition or not snapshot.mainWindowSize then
-	Profiles.profileStatus = Profiles.profileStatus .. ' Window geometry was unavailable and was not included.'
+	Profiles.profileStatus = Profiles.profileStatus .. tr(' Window geometry was unavailable and was not included.')
 	end
   return true
 end
@@ -564,21 +566,21 @@ end
 local function loadSettingsBackup()
   local safeName = normalizeBackupName(Backup.selectedBackupToLoad)
   if safeName == '' then
-    Profiles.profileStatus = 'Select a backup in the list first.'
+    Profiles.profileStatus = tr('Select a backup in the list first.')
     return false
   end
   if safeName:lower() == 'default' then
-    if applyDefaultSettings() then
-      Profiles.profileStatus = 'Built-in Default profile applied. User backup files were kept.'
+    if applyDefaultSettings() and resetMainWindowGeometry() then
+      Profiles.profileStatus = tr('Built-in Default profile applied. User backup files were kept.')
     else
-      Profiles.profileStatus = 'Default profile applied, but the chat window could not be repositioned.'
+      Profiles.profileStatus = tr('Default profile applied, but the chat window could not be repositioned.')
     end
     return true
   end
 	local filePath = backupFilePath(safeName)
   local data = filePath and io.fileExists(filePath) and io.load(filePath) or nil
 	if type(data) ~= 'string' or #data == 0 or #data > maximumBackupSize then
-	Profiles.profileStatus = 'No valid backup is available for this name.'
+	Profiles.profileStatus = tr('No valid backup is available for this name.')
 	return false
   end
 	local saved, decodeResult = decodeBackupData(data)
@@ -587,18 +589,18 @@ local function loadSettingsBackup()
 	return false
 	end
 	if not applyAllSettings(saved, true) then
-	Profiles.profileStatus = 'Backup failed settings validation; no settings were changed.'
+	Profiles.profileStatus = tr('Backup failed settings validation; no settings were changed.')
 	return false
 	end
 	if not applyAllSettings(saved) then
-	Profiles.profileStatus = 'Backup could not be applied.'
+	Profiles.profileStatus = tr('Backup could not be applied.')
 	return false
 	end
   applyBackupWindowGeometry(saved)
   Profiles.activeVehicleProfileKey = nil
   Profiles.activeKeywordProfileKey = nil
   Profiles.keywordProfileContextInitialized = false
-	Profiles.profileStatus = 'Backup loaded and validated: ' .. safeName .. ' (app ' .. decodeResult .. ').'
+	Profiles.profileStatus = tr('Backup loaded and validated: %s (app %s).', safeName, decodeResult)
   return true
 end
 
@@ -613,14 +615,22 @@ applyDefaultSettings = function()
   settings.settingsWindowAbsoluteY = 0
   settings.backupName = 'Default'
   Backup.selectedBackupToLoad = 'Default'
-  return resetMainWindowGeometry()
+  return true
 end
 
 local function resetSettings()
-  if applyDefaultSettings() then
-    Profiles.profileStatus = 'Built-in Default profile applied. User backup files were kept.'
+  local applied = applyDefaultSettings()
+  settings.language = 'en'
+  settings.tipsUnderstood = false
+  settings.debugEnabled = sliders.defaults.debugEnabled
+  settings.debugTraceEnabled = sliders.defaults.debugTraceEnabled
+  settings.debugModeEnabled = sliders.defaults.debugModeEnabled
+  modules.debug.Debug.simulator.friend = sliders.defaults.simulatorFriend
+  modules.widgets.resetDebugColors()
+  if applied and resetWindowGeometry() then
+    Profiles.profileStatus = tr('Built-in Default settings applied. User backup files were kept.')
   else
-    Profiles.profileStatus = 'Default settings applied, but the chat window could not be repositioned.'
+    Profiles.profileStatus = tr('Default settings applied, but a window could not be repositioned.')
   end
 end
 

@@ -26,7 +26,7 @@ Get-ChildItem $repo -Recurse -Filter *.lua | Where-Object { $_.FullName -notmatc
 Write-Host '== Harness'
 $trace = Join-Path $PSScriptRoot 'last-run.txt'
 Push-Location $repo
-luajit (Join-Path $PSScriptRoot 'harness.lua') (Join-Path $repo 'INFERNO-ChatAlerts.lua') dev > $trace 2>&1
+luajit (Join-Path $PSScriptRoot 'harness.lua') (Join-Path $repo 'INFERNO-ChatAlerts.lua') > $trace 2>&1
 $harnessExit = $LASTEXITCODE
 Pop-Location
 Get-Content $trace | Where-Object { $_ -match '^(ERROR|FAIL|== summary)' }

@@ -1,5 +1,6 @@
 -- Handles a chat message: matching, sound, history, and popup.
 local modules = require('core.modules')
+local tr = modules.i18n.tr
 local Alert = modules.alert
 local Chat = modules.chat
 
@@ -37,11 +38,11 @@ local function handleChatMessage(message, senderCarIndex, simulatedAuthor, simul
 
   local author = simulatedAuthor
   if not author and senderCarIndex == -1 then
-	author = 'Server'
+	author = tr('Server')
   elseif not author and senderCarIndex and senderCarIndex >= 0 then
 	author = ac.getDriverName(senderCarIndex)
   end
-  author = author and author ~= '' and author or 'Unknown'
+  author = author and author ~= '' and author or tr('Unknown')
 
   local alertOption
   local historyEntry
@@ -59,7 +60,7 @@ local function handleChatMessage(message, senderCarIndex, simulatedAuthor, simul
 	local soundToPlay = (soundFile and soundFile ~= '') and soundFile or defaultAlertSoundFile
 	historyEntry = alertHistory.add({
 	  time = os.date('%H:%M:%S'),
-	  trigger = matchedAlert == specialAlertKeys.player and 'Player mention' or matchedAlert == specialAlertKeys.friend and 'Friend message' or matchedAlert,
+	  trigger = matchedAlert == specialAlertKeys.player and tr('Player mention') or matchedAlert == specialAlertKeys.friend and tr('Friend message') or matchedAlert,
 	  author = author,
 	  authorColor = senderColor or settings.authorColor,
 	  message = message,

@@ -2,18 +2,20 @@
 -- ============================================================
 -- Shows a popup and plays a sound when a chat message matches a keyword,
 -- mentions the player or comes from a friend.
--- Entry point: loads the modules in order (core/, ui/, dev/) and connects them to CSP.
+-- Entry point: loads the modules in order (core/, ui/) and connects them to CSP.
 -- See README.md and README_AI_NOTES.md for development notes.
 
 local modules = require('core.modules')
 require('core.paths')
 require('core.settings')
 require('core.debug')
+require('core.i18n')
 require('core.util')
 require('core.alert')
 require('core.history')
 require('core.sounds')
 require('ui.widgets')
+require('ui.setting_help')
 require('core.keywords')
 require('core.friends')
 require('core.windows')
@@ -21,14 +23,15 @@ require('core.profiles')
 require('core.backup')
 require('core.sharing')
 require('core.chat')
+require('ui.list_drag')
 require('ui.alerts_tab')
 require('ui.display_tab')
 require('ui.profiles_tab')
 require('ui.history_tab')
 require('ui.tools_tab')
+require('ui.tips_tab')
 require('ui.config_window')
 require('ui.alert_window')
-require('dev.icons')
 local Alert = modules.alert
 
 local settings = modules.settings.settings
@@ -87,4 +90,3 @@ end
 -- Window callbacks named in manifest.ini (FUNCTION_MAIN).
 windowMain = modules.alertWindow.windowMain
 windowConfig = modules.configWindow.windowConfig
-windowDev = modules.dev.windowDev

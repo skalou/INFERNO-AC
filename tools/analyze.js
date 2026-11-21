@@ -53,6 +53,7 @@ function analyze(src) {
     const fn = { line: node.loc.start.line, upvalues: new Set(), parentFn: scope.fn, locals: 0 };
     fnInfo.push(fn);
     const inner = { vars: new Map(), parent: scope, fn, top: false };
+    if (node.identifier && node.identifier.indexer === ':') declare(inner, { name: 'self' }, 'param');
     for (const p of node.parameters) if (p.type === 'Identifier') declare(inner, p, 'param');
     block(node.body, inner, fnDepth + 1);
   }

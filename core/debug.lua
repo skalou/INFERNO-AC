@@ -43,8 +43,12 @@ end
 function Debug.info(message, ...) Debug.log("INFO", message, ...) end
 function Debug.warn(message, ...) Debug.log("WARN", message, ...) end
 function Debug.error(message, ...) Debug.log("ERROR", message, ...) end
+function Debug.colorsEnabled()
+    return settings.debugEnabled and settings.debugModeEnabled
+end
+
 function Debug.trace(message, ...)
-    if settings.debugModeEnabled then
+    if settings.debugEnabled and settings.debugTraceEnabled then
         Debug.log("TRACE", message, ...)
     end
 end

@@ -1,5 +1,6 @@
 -- Alert popup window (manifest window "main").
 local modules = require('core.modules')
+local tr = modules.i18n.tr
 local Alert = modules.alert
 local AlertWindow = modules.alertWindow
 
@@ -8,6 +9,7 @@ local maxOutlineScale = modules.settings.maxOutlineScale
 local invalidatePlayerNameCache = modules.keywords.invalidatePlayerNameCache
 local syncVehicleDisplayProfile = modules.profiles.syncVehicleDisplayProfile
 local syncKeywordProfile = modules.profiles.syncKeywordProfile
+local drawTitleMarker = modules.widgets.drawTitleMarker
 
 local measuredTextSize = nil
 local measuredTextWidth = nil
@@ -150,6 +152,7 @@ local function drawAlert(message, isPreview, dt, showInteractionBackground)
 end
 
 local function windowMain(dt)
+  drawTitleMarker()
   if Alert.testMessagePending then
 	Alert.testMode = Alert.testMessagePending.mode
 	Alert.latestMessage = Alert.testMessagePending.message
@@ -214,7 +217,7 @@ local function windowMain(dt)
 	drawAlert(Alert.latestMessage, true, dt or 0, showInteractionBackground)
   elseif hovered or resizing or moving then
 	local ownName = ac.getDriverName(0) or 'Driver'
-	local hoverPreviewMessage = ownName:sub(1, 15) .. ' : Chat preview - move or resize this window to position your alert.'
+	local hoverPreviewMessage = ownName:sub(1, 15) .. ' : ' .. tr('Chat preview - move or resize this window to position your alert.')
 	drawAlert(hoverPreviewMessage, true, dt or 0, showInteractionBackground)
   end
 end

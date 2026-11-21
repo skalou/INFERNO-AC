@@ -1,5 +1,6 @@
 -- Sound files, playback, and the queue for hidden alerts.
 local modules = require('core.modules')
+local tr = modules.i18n.tr
 local Sounds = modules.sounds
 
 local defaultAlertSoundFile = modules.paths.defaultAlertSoundFile
@@ -67,7 +68,7 @@ end
 local function describeAlertSound(fileName)
   if not fileName or fileName == '' then return defaultAlertSoundFile end
   if Sounds.alertSoundFileSet[fileName] then return fileName end
-  return fileName .. ' (missing)'
+  return tr('%s (missing)', fileName)
 end
 
 refreshAlertSoundFiles()
@@ -149,18 +150,18 @@ local hiddenSoundQueue = { items = {}, maxSize = 5 }
 
 function hiddenSoundQueue.add(fileName, volumePercent, historyEntry)
   if #hiddenSoundQueue.items >= hiddenSoundQueue.maxSize then
-    alertHistory.addEvent(historyEntry, 'Not played: hidden sound queue is full')
+    alertHistory.addEvent(historyEntry, tr('Not played: hidden sound queue is full'))
     return
   end
   table.insert(hiddenSoundQueue.items, { fileName = fileName, volumePercent = volumePercent, historyEntry = historyEntry })
-  alertHistory.addEvent(historyEntry, 'Delayed: waiting for the current alert sound to finish')
+  alertHistory.addEvent(historyEntry, tr('Delayed: waiting for the current alert sound to finish'))
 end
 
 function hiddenSoundQueue.playNext()
   if #hiddenSoundQueue.items == 0 or isAlertSoundPlaying() then return end
   local nextSound = table.remove(hiddenSoundQueue.items, 1)
   playAlertSound(nextSound.fileName, false, nil, nextSound.volumePercent)
-  alertHistory.addEvent(nextSound.historyEntry, 'Left the queue and started playing')
+  alertHistory.addEvent(nextSound.historyEntry, tr('Left the queue and started playing'))
 end
 
 Sounds.playAlertSound = playAlertSound
