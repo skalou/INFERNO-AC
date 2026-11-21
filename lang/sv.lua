@@ -1,5 +1,6 @@
 -- Swedish translation. Keys are the English texts used in the code.
 return {
+  ["Automatic detection"] = [[Automatisk identifiering]],
   -- Config window tabs
   ["Alerts"] = [[Aviseringar]],
   ["Display"] = [[Visning]],
@@ -130,7 +131,6 @@ return {
   ["Background rectangle"] = [[Bakgrundsrektangel]],
   ["Child background"] = [[Underordnad bakgrund]],
   ["Scrollbar background"] = [[Rullningslistens bakgrund]],
-  ["Resize grip"] = [[Storleksändringshandtag]],
   ["Used sound (already in an alert)"] = [[Använt ljud (finns redan i en avisering)]],
   ["Selected sound (this alert)"] = [[Valt ljud (denna avisering)]],
   ["Debug default"] = [[Debug-standard]],

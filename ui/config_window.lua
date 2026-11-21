@@ -106,7 +106,7 @@ local function windowConfig()
 	end
   end)
 
-  ui.popStyleColor(19)
+  ui.popStyleColor(16)
 end
 
 ConfigWindow.windowConfig = windowConfig

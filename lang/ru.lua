@@ -1,5 +1,6 @@
 -- Russian translation. Keys are the English texts used in the code.
 return {
+  ["Automatic detection"] = [[Автоматическое определение]],
   -- Config window tabs
   ["Alerts"] = [[Оповещения]],
   ["Display"] = [[Отображение]],
@@ -130,7 +131,6 @@ return {
   ["Background rectangle"] = [[Прямоугольник фона]],
   ["Child background"] = [[Фон дочерних элементов]],
   ["Scrollbar background"] = [[Фон полосы прокрутки]],
-  ["Resize grip"] = [[Ручка изменения размера]],
   ["Used sound (already in an alert)"] = [[Использованный звук (уже есть в оповещении)]],
   ["Selected sound (this alert)"] = [[Выбранный звук (это оповещение)]],
   ["Debug default"] = [[По умолчанию (debug)]],

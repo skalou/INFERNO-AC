@@ -1,5 +1,6 @@
 -- Brazilian Portuguese translation. Keys are the English texts used in the code.
 return {
+  ["Automatic detection"] = [[Detecção automática]],
   -- Config window tabs
   ["Alerts"] = [[Alertas]],
   ["Display"] = [[Exibição]],
@@ -130,7 +131,6 @@ return {
   ["Background rectangle"] = [[Retângulo de fundo]],
   ["Child background"] = [[Fundo dos filhos]],
   ["Scrollbar background"] = [[Fundo da barra de rolagem]],
-  ["Resize grip"] = [[Alça de redimensionamento]],
   ["Used sound (already in an alert)"] = [[Som usado (já em um alerta)]],
   ["Selected sound (this alert)"] = [[Som selecionado (este alerta)]],
   ["Debug default"] = [[Padrão debug]],

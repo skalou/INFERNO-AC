@@ -1,5 +1,6 @@
 -- Simplified Chinese translation. Keys are the English texts used in the code.
 return {
+  ["Automatic detection"] = [[自动检测]],
   -- Config window tabs
   ["Alerts"] = [[提醒]],
   ["Display"] = [[显示]],
@@ -130,7 +131,6 @@ return {
   ["Background rectangle"] = [[背景矩形]],
   ["Child background"] = [[子元素背景]],
   ["Scrollbar background"] = [[滚动条背景]],
-  ["Resize grip"] = [[缩放手柄]],
   ["Used sound (already in an alert)"] = [[已使用的声音（已在某个提醒中）]],
   ["Selected sound (this alert)"] = [[已选择的声音（此提醒）]],
   ["Debug default"] = [[Debug默认值]],

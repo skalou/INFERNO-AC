@@ -1,5 +1,6 @@
 -- Polish translation. Keys are the English texts used in the code.
 return {
+  ["Automatic detection"] = [[Automatyczne wykrywanie]],
   -- Config window tabs
   ["Alerts"] = [[Alerty]],
   ["Display"] = [[Wyświetlanie]],
@@ -130,7 +131,6 @@ return {
   ["Background rectangle"] = [[Prostokąt tła]],
   ["Child background"] = [[Tło elementów podrzędnych]],
   ["Scrollbar background"] = [[Tło paska przewijania]],
-  ["Resize grip"] = [[Uchwyt zmiany rozmiaru]],
   ["Used sound (already in an alert)"] = [[Użyty dźwięk (już jest w alercie)]],
   ["Selected sound (this alert)"] = [[Wybrany dźwięk (ten alert)]],
   ["Debug default"] = [[Domyślny debug]],

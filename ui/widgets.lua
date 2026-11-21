@@ -123,10 +123,10 @@ local sliders = {
   defaults = {
     masterVolume = 100,
     keywordVolume = 100,
-    textSize = 48,
+    textSize = 20,
     duration = 3.0,
     opacity = 75,
-    outlineThicknessPercent = 8,
+    outlineThicknessPercent = 5.2631556987762,
     buttonOverflow = 5,
     soundEnabled = true,
     mentionMe = true,
@@ -405,7 +405,6 @@ local function newDebugColors()
     background = rgbm(1, 1, 1, 1),
     childBg = rgbm(0, 0, 1, 0.9),
     scrollbarBg = rgbm(0, 1, 0, 1),
-    resizeGrip = rgbm(1, 0.2, 0.8, 1),
     usedSound = rgbm(1, 0.85, 0.2, 1),
     selectedSound = rgbm(1, 0.5, 0, 1),
     rowFrame = rowFrameDefault:clone(),
@@ -416,7 +415,7 @@ local debugColors = newDebugColors()
 -- Untouched copy of the default debug colours, shown read-only and used by the per-colour reset.
 local debugColorDefaults = newDebugColors()
 
-local debugColorKeys = { 'background', 'childBg', 'scrollbarBg', 'resizeGrip', 'usedSound', 'selectedSound', 'rowFrame' }
+local debugColorKeys = { 'background', 'childBg', 'scrollbarBg', 'usedSound', 'selectedSound', 'rowFrame' }
 -- Colours switched off with their checkbox. A colour absent from this table is enabled.
 local debugColorDisabled = {}
 -- Normal (non-debug) colour of each diagnostic colour, used while Diagnostic colors or its checkbox is off. Editable from the Tools tab and stored in settings as text.
@@ -424,7 +423,6 @@ local normalColorDefaults = {
   background = rgbm(0.14, 0.14, 0.14, 0.96),
   childBg = rgbm(0, 0, 0, 0),
   scrollbarBg = rgbm(0.02, 0.02, 0.02, 0.53),
-  resizeGrip = rgbm(97 / 255, 138 / 255, 81 / 255, 0.45),
   usedSound = rgbm(1, 0.85, 0.2, 1),
   selectedSound = rgbm(1, 0.5, 0, 1),
   rowFrame = rowFrameDefault:clone(),
@@ -570,15 +568,14 @@ local function drawColorButton(id, color, flags)
   ui.colorButton(id, color, flags, size)
 end
 
--- Read-only swatch of a colour at 3/4 of the editable button size, centred on its height. The checkerboard covers the whole button footprint so transparency shows at any alpha.
+-- Read-only swatch drawn with the same geometry as the editable colour buttons, checkerboard overflow included.
 local function drawColorSwatch(color)
-  local buttonSize = vec2(32, 20)
-  local size = vec2(24, 15)
-  local origin = ui.getCursor()
-  local pos = origin + vec2(0, (buttonSize.y - size.y) / 2)
-  drawChecker(origin, origin + buttonSize)
+  local size = vec2(32, 20)
+  local pos = ui.getCursor()
+  local grow = size * (debugColors.buttonOverflow / 100)
+  drawChecker(pos - grow, pos + size + grow)
   ui.drawRectFilled(pos, pos + size, color)
-  ui.dummy(buttonSize)
+  ui.dummy(size)
 end
 
 local function resetColorSetting(key)
@@ -672,10 +669,6 @@ local function pushSettingsTheme()
   ui.pushStyleColor(ui.StyleColor.HeaderActive, buttonActive)
   ui.pushStyleColor(ui.StyleColor.PopupBg, rgbm(bgColor.r * 0.1, bgColor.g * 0.1, bgColor.b * 0.1, 0.98))
   ui.pushStyleColor(ui.StyleColor.Border, rgbm(color.r, color.g, color.b, 0.28))
-  local grip = debugColor('resizeGrip')
-  ui.pushStyleColor(ui.StyleColor.ResizeGrip, grip)
-  ui.pushStyleColor(ui.StyleColor.ResizeGripHovered, rgbm(grip.r, grip.g, grip.b, 0.8))
-  ui.pushStyleColor(ui.StyleColor.ResizeGripActive, rgbm(grip.r, grip.g, grip.b, 1))
 end
 
 local function drawSoundFolderButton()
@@ -708,12 +701,14 @@ local resetIconSize = flagHeight * 0.75
 
 local function drawLanguageSelector(id, label)
   local language = modules.i18n.currentLanguage()
+  local shownName = modules.i18n.languageName(language)
+  if language.code == 'auto' then shownName = shownName .. ' (' .. modules.i18n.activeLanguage().name .. ')' end
   Widgets.text(label or tr('Language'))
   ui.sameLine()
-  ui.setNextItemWidth(160)
-  if ui.beginCombo(id, language.name) then
+  ui.setNextItemWidth(230)
+  if ui.beginCombo(id, shownName) then
     for _, option in ipairs(modules.i18n.languages) do
-      if ui.selectable(option.name, option.code == language.code) then
+      if ui.selectable(modules.i18n.languageName(option), option.code == language.code) then
         modules.i18n.setLanguage(option.code)
       end
     end
@@ -724,7 +719,7 @@ local function drawLanguageSelector(id, label)
   Widgets.text('Reset:')
   ui.sameLine()
   if ui.iconButton(ui.Icons.Reset, vec2(resetIconSize, resetIconSize), rgbm(1, 1, 1, 1), rgbm(0, 0, 0, 0)) then
-    modules.i18n.setLanguage('en')
+    modules.i18n.setLanguage('auto')
   end
   ui.sameLine()
   ui.image('flag_en.png', vec2(flagWidth, flagHeight))

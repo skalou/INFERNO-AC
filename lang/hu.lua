@@ -1,5 +1,6 @@
 -- Hungarian translation. Keys are the English texts used in the code.
 return {
+  ["Automatic detection"] = [[Automatikus felismerés]],
   -- Config window tabs
   ["Alerts"] = [[Riasztások]],
   ["Display"] = [[Megjelenítés]],
@@ -130,7 +131,6 @@ return {
   ["Background rectangle"] = [[Háttérteglalap]],
   ["Child background"] = [[Alelemek háttere]],
   ["Scrollbar background"] = [[Görgetősáv háttere]],
-  ["Resize grip"] = [[Átméretezési fogantyú]],
   ["Used sound (already in an alert)"] = [[Használt hang (már szerepel riasztásban)]],
   ["Selected sound (this alert)"] = [[Kiválasztott hang (ez a riasztás)]],
   ["Debug default"] = [[Debug alapérték]],

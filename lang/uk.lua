@@ -1,5 +1,6 @@
 -- Ukrainian translation. Keys are the English texts used in the code.
 return {
+  ["Automatic detection"] = [[Автоматичне визначення]],
   -- Config window tabs
   ["Alerts"] = [[Сповіщення]],
   ["Display"] = [[Відображення]],
@@ -130,7 +131,6 @@ return {
   ["Background rectangle"] = [[Прямокутник фону]],
   ["Child background"] = [[Фон дочірніх елементів]],
   ["Scrollbar background"] = [[Фон смуги прокрутки]],
-  ["Resize grip"] = [[Маркер зміни розміру]],
   ["Used sound (already in an alert)"] = [[Використаний звук (уже є в сповіщенні)]],
   ["Selected sound (this alert)"] = [[Вибраний звук (це сповіщення)]],
   ["Debug default"] = [[За замовчуванням (debug)]],

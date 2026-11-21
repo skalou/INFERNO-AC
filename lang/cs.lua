@@ -1,5 +1,6 @@
 -- Czech translation. Keys are the English texts used in the code.
 return {
+  ["Automatic detection"] = [[Automatická detekce]],
   -- Config window tabs
   ["Alerts"] = [[Upozornění]],
   ["Display"] = [[Zobrazení]],
@@ -130,7 +131,6 @@ return {
   ["Background rectangle"] = [[Obdélník pozadí]],
   ["Child background"] = [[Pozadí podprvků]],
   ["Scrollbar background"] = [[Pozadí posuvníku]],
-  ["Resize grip"] = [[Úchyt pro změnu velikosti]],
   ["Used sound (already in an alert)"] = [[Použitý zvuk (již v upozornění)]],
   ["Selected sound (this alert)"] = [[Vybraný zvuk (toto upozornění)]],
   ["Debug default"] = [[Výchozí debug]],

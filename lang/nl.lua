@@ -1,5 +1,6 @@
 -- Dutch translation. Keys are the English texts used in the code.
 return {
+  ["Automatic detection"] = [[Automatische detectie]],
   -- Config window tabs
   ["Alerts"] = [[Waarschuwingen]],
   ["Display"] = [[Weergave]],
@@ -130,7 +131,6 @@ return {
   ["Background rectangle"] = [[Achtergrondrechthoek]],
   ["Child background"] = [[Achtergrond van onderdelen]],
   ["Scrollbar background"] = [[Achtergrond schuifbalk]],
-  ["Resize grip"] = [[Grip voor formaatwijziging]],
   ["Used sound (already in an alert)"] = [[Gebruikt geluid (al in een waarschuwing)]],
   ["Selected sound (this alert)"] = [[Geselecteerd geluid (deze waarschuwing)]],
   ["Debug default"] = [[Debug-standaard]],

@@ -27,12 +27,11 @@ local debugColorRows = {
   { 'Background rectangle', 'background' },
   { 'Child background', 'childBg' },
   { 'Scrollbar background', 'scrollbarBg' },
-  { 'Resize grip', 'resizeGrip' },
   { 'Used sound (already in an alert)', 'usedSound' },
   { 'Selected sound (this alert)', 'selectedSound' },
   { 'Keyword row frame', 'rowFrame' },
 }
-local editWidth, resetWidth, swatchWidth = 32, 20, 24
+local editWidth, resetWidth = 32, 20
 -- Offset of the label after its checkbox, read on each row and used by the layout of the next frame.
 local checkboxLabelOffset = 24
 
@@ -43,7 +42,7 @@ local function debugColorLayout(originX)
   layout.editX = checkboxLabelOffset + maxLabel + 12
   layout.resetX = layout.editX + editWidth + 10
   layout.defaultX = layout.resetX + resetWidth + 16
-  layout.normalX = layout.defaultX + math.max(swatchWidth, ui.measureText(tr('Debug default')).x) + 16
+  layout.normalX = layout.defaultX + math.max(editWidth, ui.measureText(tr('Debug default')).x) + 16
   layout.normalResetX = layout.normalX + editWidth + 10
   return layout
 end

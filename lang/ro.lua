@@ -1,5 +1,6 @@
 -- Romanian translation. Keys are the English texts used in the code.
 return {
+  ["Automatic detection"] = [[Detectare automată]],
   -- Config window tabs
   ["Alerts"] = [[Alerte]],
   ["Display"] = [[Afișare]],
@@ -130,7 +131,6 @@ return {
   ["Background rectangle"] = [[Dreptunghiul de fundal]],
   ["Child background"] = [[Fundalul copiilor]],
   ["Scrollbar background"] = [[Fundalul barei de derulare]],
-  ["Resize grip"] = [[Mânerul de redimensionare]],
   ["Used sound (already in an alert)"] = [[Sunet folosit (deja într-o alertă)]],
   ["Selected sound (this alert)"] = [[Sunet selectat (această alertă)]],
   ["Debug default"] = [[Implicit debug]],

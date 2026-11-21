@@ -1,5 +1,6 @@
 -- Finnish translation. Keys are the English texts used in the code.
 return {
+  ["Automatic detection"] = [[Automaattinen tunnistus]],
   -- Config window tabs
   ["Alerts"] = [[Hälytykset]],
   ["Display"] = [[Näyttö]],
@@ -130,7 +131,6 @@ return {
   ["Background rectangle"] = [[Taustasuorakulmio]],
   ["Child background"] = [[Lapsen tausta]],
   ["Scrollbar background"] = [[Vierityspalkin tausta]],
-  ["Resize grip"] = [[Koon muutoskahva]],
   ["Used sound (already in an alert)"] = [[Käytetty ääni (on jo hälytyksessä)]],
   ["Selected sound (this alert)"] = [[Valittu ääni (tämä hälytys)]],
   ["Debug default"] = [[Debug-oletus]],

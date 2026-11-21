@@ -1,5 +1,6 @@
 -- Turkish translation. Keys are the English texts used in the code.
 return {
+  ["Automatic detection"] = [[Otomatik algılama]],
   -- Config window tabs
   ["Alerts"] = [[Uyarılar]],
   ["Display"] = [[Görünüm]],
@@ -130,7 +131,6 @@ return {
   ["Background rectangle"] = [[Arka plan dikdörtgeni]],
   ["Child background"] = [[Alt öğe arka planı]],
   ["Scrollbar background"] = [[Kaydırma çubuğu arka planı]],
-  ["Resize grip"] = [[Yeniden boyutlandırma tutamacı]],
   ["Used sound (already in an alert)"] = [[Kullanılan ses (zaten bir uyarıda)]],
   ["Selected sound (this alert)"] = [[Seçili ses (bu uyarı)]],
   ["Debug default"] = [[Debug varsayılanı]],

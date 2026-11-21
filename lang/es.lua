@@ -1,5 +1,6 @@
 -- Spanish translation. Keys are the English texts used in the code.
 return {
+  ["Automatic detection"] = [[Detección automática]],
   -- Config window tabs
   ["Alerts"] = [[Alertas]],
   ["Display"] = [[Pantalla]],
@@ -130,7 +131,6 @@ return {
   ["Background rectangle"] = [[Rectángulo de fondo]],
   ["Child background"] = [[Fondo de elementos secundarios]],
   ["Scrollbar background"] = [[Fondo de la barra de desplazamiento]],
-  ["Resize grip"] = [[Asa de redimensionado]],
   ["Used sound (already in an alert)"] = [[Sonido usado (ya está en una alerta)]],
   ["Selected sound (this alert)"] = [[Sonido seleccionado (esta alerta)]],
   ["Debug default"] = [[Predeterminado debug]],

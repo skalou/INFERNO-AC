@@ -1,5 +1,6 @@
 -- German translation. Keys are the English texts used in the code.
 return {
+  ["Automatic detection"] = [[Automatische Erkennung]],
   -- Config window tabs
   ["Alerts"] = [[Alarme]],
   ["Display"] = [[Anzeige]],
@@ -130,7 +131,6 @@ return {
   ["Background rectangle"] = [[Hintergrundrechteck]],
   ["Child background"] = [[Hintergrund der Unterelemente]],
   ["Scrollbar background"] = [[Hintergrund der Bildlaufleiste]],
-  ["Resize grip"] = [[Größenziehpunkt]],
   ["Used sound (already in an alert)"] = [[Verwendeter Sound (bereits in einem Alarm)]],
   ["Selected sound (this alert)"] = [[Ausgewählter Sound (dieser Alarm)]],
   ["Debug default"] = [[Debug-Standard]],

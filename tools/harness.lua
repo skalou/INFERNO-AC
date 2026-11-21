@@ -59,7 +59,7 @@ FS[soundRoot .. '\\00defaultALERT.wav'] = 'wav'
 FS[soundRoot .. '\\beep.mp3'] = 'mp3'
 FS[soundRoot .. '\\Sub\\sub.wav'] = 'wav'
 DIRS[soundRoot] = true; DIRS[soundRoot .. '\\Sub'] = true
--- Data of the old IsuChat Alert app: 0.4.0 must never read or copy it.
+-- Data of the old IsuChat Alert app: INFERNO must never read or copy it.
 local oldState = 'C:\\stub\\ExtCfgState\\lua\\app\\isuChatAlertLua'
 FS[oldState .. '.ini'] = 'old settings'
 FS[oldState .. '\\Saves\\Old.json'] = 'old backup'
@@ -487,7 +487,7 @@ check('reset settings restores language, Tips checkbox and both window positions
   S.tipsUnderstood = true
   local before = #TRACE
   M.backup.resetSettings()
-  assert(S.language == 'en', 'language was not reset: ' .. tostring(S.language))
+  assert(S.language == 'auto', 'language was not reset to automatic detection: ' .. tostring(S.language))
   assert(S.tipsUnderstood == false, 'Tips checkbox was not reset')
   local moved = {}
   for i = before + 1, #TRACE do moved[#moved + 1] = TRACE[i] end
@@ -497,6 +497,39 @@ check('reset settings restores language, Tips checkbox and both window positions
   end
   assert(has('move window main'), 'chat window was not repositioned')
   assert(has('resize window config') and has('move window config'), 'settings window was not repositioned')
+end)
+
+check('auto language follows the Assetto Corsa launcher, English when the file or language is unknown', function()
+  local launcher = 'C:\\stub\\ACDocuments\\cfg\\launcher.ini'
+  local I18n = M.i18n
+  local function detect(text)
+    FS[launcher] = text
+    return I18n.detectLanguage()
+  end
+  local ok, err = pcall(function()
+    assert(I18n.languageFromLauncher('pt-BR') == 'pt_BR', 'pt-BR')
+    assert(I18n.languageFromLauncher('zh_TW') == 'zh-TW', 'zh_TW')
+    assert(I18n.languageFromLauncher('es-419') == 'es', 'es-419')
+    assert(I18n.languageFromLauncher('en-US') == 'en', 'en-US')
+    assert(I18n.languageFromLauncher('pt-PT') == 'en', 'pt-PT has no pack')
+    assert(I18n.languageFromLauncher(nil) == 'en', 'nil')
+    assert(detect('[WINDOW]\r\nLANGUAGE=it\r\n[PROCESS]\r\n') == 'it', 'launcher language not read')
+    assert(detect(nil) == 'en', 'missing launcher.ini did not fall back to English')
+    S.language = 'auto'
+    detect('[WINDOW]\nLANGUAGE=fr\n')
+    assert(I18n.currentLanguage().code == 'auto', 'auto not kept as the setting')
+    assert(I18n.activeLanguage().code == 'fr', 'auto did not use the detected language')
+    assert(I18n.tr('Getting started') == 'Pour commencer', 'auto did not translate')
+    assert(I18n.languageName(I18n.languages[1]) == 'Détection automatique', 'automatic entry not translated to French')
+    detect('[WINDOW]\nLANGUAGE=it\n')
+    assert(I18n.languageName(I18n.languages[1]) == 'Rilevamento automatico', 'automatic entry not translated to Italian')
+    assert(I18n.languageName(I18n.languages[2]) == 'English', 'language names must not be translated')
+    S.language = 'en'
+    assert(I18n.tr('Getting started') == 'Getting started', 'manual English was overridden')
+  end)
+  FS[launcher] = nil
+  I18n.detectLanguage()
+  S.language = 'en'
 end)
 
 check('reset settings also restores debug flags, simulator friend and debug colours', function()
@@ -514,15 +547,10 @@ check('reset settings also restores debug flags, simulator friend and debug colo
   assert(not tostring(S.debugColorsData):find('off:', 1, true), 'debug colour checkboxes were not saved as reset')
 end)
 
-check('normal colours keep their defaults and the resize grip stays fixed', function()
+check('normal colours keep their defaults', function()
   local W = M.widgets
   assert(W.debugColorNormal('childBg').mult == 0, 'normal childBg should be transparent')
   assert(W.debugColorNormal('background').mult == 0.96, 'normal background band is wrong')
-  local theme = S.themeColor
-  S.themeColor = rgbm(0.2, 0.4, 0.6, 1)
-  local grip = W.debugColorNormal('resizeGrip')
-  S.themeColor = theme
-  assert(math.abs(grip.r - 97 / 255) < 1e-6 and math.abs(grip.g - 138 / 255) < 1e-6 and grip.mult == 0.45, 'normal resize grip is not the fixed accent')
   W.debugColors.childBg = rgbm(1, 0, 0, 1)
   assert(W.debugColorNormal('childBg').mult == 0, 'normal colour followed the debug colour')
   W.resetDebugColors()
@@ -587,7 +615,7 @@ check('diagnostic colour reset buttons do not share an ImGui id', function()
   ui.pushID, ui.popID, ui.iconButton, ui.checkbox, ui.colorButton = origPush, origPop, origIcon, origCheckbox, origColorButton
   S.debugEnabled, S.debugModeEnabled = debugEnabled, debugModeEnabled
   if not ok then error(err, 0) end
-  assert(calls >= 14, 'reset buttons were not drawn (' .. calls .. ' icon buttons)')
+  assert(calls >= 12, 'reset buttons were not drawn (' .. calls .. ' icon buttons)')
   assert(not duplicate, 'duplicate icon button id: ' .. tostring(duplicate))
 end)
 

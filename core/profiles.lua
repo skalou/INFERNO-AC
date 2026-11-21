@@ -238,7 +238,7 @@ local function resetVehicleDisplayProfile(key)
 
   settings.hideWhenNotHovered = false
   settings.backgroundEnabled = false
-  settings.outlineThicknessPercent = 8
+  settings.outlineThicknessPercent = 5.2631556987762
   settings.softOutline = true
   settings.textColor = rgbm(1, 102 / 255, 134 / 255, 242 / 255)
   settings.authorColor = rgbm(1, 190 / 255, 80 / 255, 1)
@@ -246,9 +246,9 @@ local function resetVehicleDisplayProfile(key)
   settings.friendColor = rgbm(0, 0.8, 1, 1)
   settings.outlineColor = rgbm(20 / 255, 20 / 255, 20 / 255, 1)
   settings.backgroundColor = rgbm(26 / 255, 26 / 255, 26 / 255, 1)
-  settings.accentColor = rgbm(97 / 255, 138 / 255, 81 / 255, 198 / 255)
-  settings.themeColor = rgbm(97 / 255, 138 / 255, 81 / 255, 1)
-  settings.themeBgColor = rgbm(97 / 255, 138 / 255, 81 / 255, 1)
+  settings.accentColor = rgbm(0.76470404863358, 0.17448054254055, 0, 0.77647060155869)
+  settings.themeColor = rgbm(0.61415600776672, 0.051795560866594, 0.046533223241568, 1)
+  settings.themeBgColor = rgbm(1, 0.99995344877243, 0.99989998340607, 1)
   local geometryReset = resetMainWindowGeometry()
   if key then
     Profiles.vehicleDisplayProfiles[key] = captureVehicleDisplayProfile()
