@@ -25,12 +25,12 @@ function Copy-ModFiles([string]$from, [string]$destination, [string[]]$dirs) {
 
 $release = Join-Path $AppsFolder 'INFERNO-ChatAlerts'
 Copy-ModFiles $source $release $excludeDirs
-Copy-Item -LiteralPath (Join-Path $source 'icons\INFERNO-ChatAlerts-icons-02.png') -Destination (Join-Path $release 'icon.png') -Force
-Copy-Item -LiteralPath (Join-Path $source 'icons\INFERNO-ChatAlerts-icons-02.png') -Destination (Join-Path $release 'icon_config.png') -Force
+Copy-Item -LiteralPath (Join-Path $source 'icons\INFERNO-ChatAlerts-06-128px.png') -Destination (Join-Path $release 'icon.png') -Force
+Copy-Item -LiteralPath (Join-Path $source 'icons\INFERNO-ChatAlertsSettings-icons-04-128px.png') -Destination (Join-Path $release 'icon_config.png') -Force
 Copy-Item -LiteralPath (Join-Path $source 'icons\great-britain-flag-256x154px.png') -Destination (Join-Path $release 'flag_en.png') -Force
 Write-Host "Release app deployed to $release"
 
 $dev = Join-Path $AppsFolder 'INFERNO-DEV'
 Copy-ModFiles (Join-Path $source 'INFERNO-DEV') $dev @()
-Copy-Item -LiteralPath (Join-Path $source 'icons\inferno_icon64.png') -Destination (Join-Path $dev 'icon.png') -Force
+Copy-Item -LiteralPath (Join-Path $source 'icons\INFERNO-DEV-icon-03-128px.png') -Destination (Join-Path $dev 'icon.png') -Force
 Write-Host "Developer app deployed to $dev"
