@@ -222,10 +222,19 @@ local function drawSymbolsTab()
 end
 
 local function drawInfoTab()
+  local iconSize = 192
+  local iconOffset = (ui.availableSpaceX() - iconSize) / 2
+
   ui.text('INFERNO-DEV')
   ui.text('Icons listed: ' .. #icons)
   ui.text('CSP version: ' .. (ac.getPatchVersion and ac.getPatchVersion() or 'unknown'))
   ui.separator()
+
+  -- Display app icon centered
+  ui.sameLine(iconOffset)
+  ui.image('icon.png', vec2(iconSize, iconSize))
+  ui.separator()
+
   ui.textWrapped('Use an icon in any app with: ui.icon(ui.Icons.Name, vec2(24, 24))')
 end
 

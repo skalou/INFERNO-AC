@@ -145,7 +145,8 @@ local function drawToolsTab()
 
   ui.separator()
   local iconSize = 128
-  local iconOffset = (ui.availableSpaceX() - iconSize) / 2
+  local totalIconsWidth = iconSize * 2 + 16  -- 2 icons + spacing
+  local iconOffset = (ui.availableSpaceX() - totalIconsWidth) / 2
   ui.beginGroup()
   Widgets.text(tr('Debug'))
   local cspVersion = ac.getPatchVersion and ac.getPatchVersion() or 'unknown'
@@ -155,7 +156,11 @@ local function drawToolsTab()
   Widgets.text(tr('UI Scale: %s', tostring(uiScale)))
   ui.endGroup()
   ui.sameLine(iconOffset)
+  -- Main app icon
   ui.image('icon.png', vec2(iconSize, iconSize))
+  ui.sameLine()
+  -- Config window icon
+  ui.image('config-icon.png', vec2(iconSize, iconSize))
   ui.separator()
 
   -- Update vehicle/server cache only every 2 seconds (not every frame)
