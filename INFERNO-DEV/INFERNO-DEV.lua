@@ -232,7 +232,7 @@ local function drawInfoTab()
 
   -- Display app icon centered
   ui.sameLine(iconOffset)
-  ui.image('icons/icon.png', vec2(iconSize, iconSize))
+  ui.image('icon.png', vec2(iconSize, iconSize))
   ui.separator()
 
   ui.textWrapped('Use an icon in any app with: ui.icon(ui.Icons.Name, vec2(24, 24))')

@@ -55,14 +55,15 @@ Copy-Item "sounds\MyCustomSoundsEXEMPLE" -Destination $soundsDest -Recurse
 Write-Host "  + sounds/DefaultAppSounds/" -ForegroundColor Gray
 Write-Host "  + sounds/MyCustomSoundsEXEMPLE/" -ForegroundColor Gray
 
-# Copy required icon files
+# Copy required icon files to root
 Write-Host ""
 Write-Host "Adding icons:" -ForegroundColor Cyan
-Copy-Item "icons" -Destination $tempDir -Recurse
-Write-Host "  + icons/" -ForegroundColor Gray
-Write-Host "    - icon.png" -ForegroundColor Gray
-Write-Host "    - config-icon.png" -ForegroundColor Gray
-Write-Host "    - flag_en.png" -ForegroundColor Gray
+Copy-Item "icon.png" -Destination $tempDir -Force
+Copy-Item "config-icon.png" -Destination $tempDir -Force
+Copy-Item "flag_en.png" -Destination $tempDir -Force
+Write-Host "  + icon.png" -ForegroundColor Gray
+Write-Host "  + config-icon.png" -ForegroundColor Gray
+Write-Host "  + flag_en.png" -ForegroundColor Gray
 
 # Copy INFERNO-DEV app (developer tools)
 Write-Host ""
