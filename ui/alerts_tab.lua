@@ -96,6 +96,9 @@ local function drawAlertsTabHeader()
 end
 
 local function drawAlertsTab()
+  -- Refresh the list of available sounds each time the tab is displayed
+  Sounds.refreshAlertSoundFiles()
+
   drawSoundFolderButton()
   Widgets.textWrapped(tr('Available sounds: .wav and .mp3 files in the sounds folder and its subfolders. If a selected file is missing or cannot be loaded, %s is used instead.', defaultAlertSoundFile))
   if not Sounds.alertSoundFileSet[defaultAlertSoundFile] then
@@ -355,37 +358,41 @@ function drawKeywordList(list, drafts, drag, options)
 	-- Slider value is read-only (progress controlled by frame counter)
 	ui.sameLine()
 	local keywordSoundWidth = ui.availableSpaceX() - keywordRowPadding
+
+	-- Capture position BEFORE drawing the sound picker
+	local soundTextPos = ui.getCursor()
+
 	soundPicker.drawFile('##keywordSound', selectedSound, keywordSoundWidth, index, nil, soundPicker.usedSounds(keywordSoundAssignments), setSelectedSound)
 	-- Sound selector size measured, unused (kept for future reference)
 	local soundSelectorSize = ui.getItemRectSize()
 
-	-- Check if sound was missing and trigger blinking
-	local missingSound = Sounds.getAndClearMissingSound()
-	if missingSound and missingSound == selectedSound then
-	  missingSoundStates[index] = { startTime = ui.time() }
-	end
+	-- Check if sound file is missing (not in the sounds list)
+	local isSoundMissing = selectedSound and selectedSound ~= '' and not Sounds.alertSoundFileSet[selectedSound]
 
 	-- Draw red/white blinking background for missing sounds
-	if missingSoundStates[index] then
+	if isSoundMissing then
+	  -- Initialize blinking state on first detection
+	  if not missingSoundStates[index] then
+		missingSoundStates[index] = { startTime = ui.time() }
+	  end
+
 	  local elapsed = ui.time() - missingSoundStates[index].startTime
 	  local isBlink = math.floor(elapsed * 2) % 2 == 0  -- Alternate every 0.5s
+
+	  local rectSize = vec2(keywordSoundWidth, 20)
 
 	  if isBlink then
 		-- RED phase
 		local bgColor = rgbm(1, 0, 0, 0.5)  -- Red with 50% opacity
-		local pos = ui.getCursor() - vec2(keywordSoundWidth + keywordRowPadding, 20)
-		ui.drawRectFilled(pos, pos + vec2(keywordSoundWidth + keywordRowPadding, 20), bgColor, 2)
+		ui.drawRectFilled(soundTextPos, soundTextPos + rectSize, bgColor, 2)
 	  else
 		-- WHITE phase
 		local bgColor = rgbm(1, 1, 1, 0.3)  -- White with 30% opacity
-		local pos = ui.getCursor() - vec2(keywordSoundWidth + keywordRowPadding, 20)
-		ui.drawRectFilled(pos, pos + vec2(keywordSoundWidth + keywordRowPadding, 20), bgColor, 2)
+		ui.drawRectFilled(soundTextPos, soundTextPos + rectSize, bgColor, 2)
 	  end
-
-	  -- Stop blinking after 3 seconds
-	  if elapsed > 3 then
-		missingSoundStates[index] = nil
-	  end
+	else
+	  -- Sound is not missing, clear the blinking state
+	  missingSoundStates[index] = nil
 	end
 
 	ui.dummy(vec2(0, keywordRowPadding))

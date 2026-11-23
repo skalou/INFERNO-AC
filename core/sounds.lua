@@ -173,10 +173,14 @@ Sounds.refreshAlertSoundFiles = refreshAlertSoundFiles
 Sounds.describeAlertSound = describeAlertSound
 Sounds.isAlertSoundPlaying = isAlertSoundPlaying
 Sounds.hiddenSoundQueue = hiddenSoundQueue
-Sounds.getAndClearMissingSound = function()
-  local result = lastMissingSoundFileName
+-- Get the current missing sound (without clearing, so we can track it persistently)
+Sounds.getCurrentMissingSoundIfAny = function()
+  return lastMissingSoundFileName
+end
+
+-- Manually clear the missing sound tracking (called when file is restored)
+Sounds.clearMissingSound = function()
   lastMissingSoundFileName = nil
-  return result
 end
 
 return Sounds
