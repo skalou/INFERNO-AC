@@ -35,6 +35,7 @@ local keyEnter = 0x0D -- VK_RETURN: validates the keyword being typed.
 local userKeywordDrafts = { text = {}, volume = {} }
 local deleteKeywordConfirmed = false
 local removedKeywordIndex = nil
+local missingSoundStates = {}  -- Track blinking state for missing sounds
 local drawKeywordList
 -- Track playback frame counters for sound test progress (simple approximation)
 local soundTestFrameCounters = {}
@@ -357,6 +358,36 @@ function drawKeywordList(list, drafts, drag, options)
 	soundPicker.drawFile('##keywordSound', selectedSound, keywordSoundWidth, index, nil, soundPicker.usedSounds(keywordSoundAssignments), setSelectedSound)
 	-- Sound selector size measured, unused (kept for future reference)
 	local soundSelectorSize = ui.getItemRectSize()
+
+	-- Check if sound was missing and trigger blinking
+	local missingSound = Sounds.getAndClearMissingSound()
+	if missingSound and missingSound == selectedSound then
+	  missingSoundStates[index] = { startTime = ui.time() }
+	end
+
+	-- Draw red/white blinking background for missing sounds
+	if missingSoundStates[index] then
+	  local elapsed = ui.time() - missingSoundStates[index].startTime
+	  local isBlink = math.floor(elapsed * 2) % 2 == 0  -- Alternate every 0.5s
+
+	  if isBlink then
+		-- RED phase
+		local bgColor = rgbm(1, 0, 0, 0.5)  -- Red with 50% opacity
+		local pos = ui.getCursor() - vec2(keywordSoundWidth + keywordRowPadding, 20)
+		ui.drawRectFilled(pos, pos + vec2(keywordSoundWidth + keywordRowPadding, 20), bgColor, 2)
+	  else
+		-- WHITE phase
+		local bgColor = rgbm(1, 1, 1, 0.3)  -- White with 30% opacity
+		local pos = ui.getCursor() - vec2(keywordSoundWidth + keywordRowPadding, 20)
+		ui.drawRectFilled(pos, pos + vec2(keywordSoundWidth + keywordRowPadding, 20), bgColor, 2)
+	  end
+
+	  -- Stop blinking after 3 seconds
+	  if elapsed > 3 then
+		missingSoundStates[index] = nil
+	  end
+	end
+
 	ui.dummy(vec2(0, keywordRowPadding))
 	local rowBottom = ui.getCursorY()
 	local frameColor = modules.widgets.rowFrameColor()

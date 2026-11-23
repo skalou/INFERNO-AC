@@ -14,6 +14,7 @@ Sounds.alertSoundFileSet = {}
 local soundWarningsLogged = {}
 local currentSoundEvent = nil
 local currentSoundTestKey = nil
+local lastMissingSoundFileName = nil  -- Track missing sound from playAlertSound
 local playAlertSound -- assigned below; the recent sounds list previews through it
 
 local function stopCurrentSound()
@@ -68,7 +69,7 @@ end
 local function describeAlertSound(fileName)
   if not fileName or fileName == '' then return defaultAlertSoundFile end
   if Sounds.alertSoundFileSet[fileName] then return fileName end
-  return tr('%s (missing)', fileName)
+  return '/!\\ MISSING /!\\: ' .. fileName
 end
 
 refreshAlertSoundFiles()
@@ -129,6 +130,7 @@ playAlertSound = function(fileName, force, testKey, volumePercent)
 	  Debug.error('audio file is not available in the app folder: ' .. tostring(fileName))
 	  soundWarningsLogged[fileName] = true
 	end
+	lastMissingSoundFileName = fileName  -- Store for UI feedback
 	fileName = defaultAlertSoundFile
 		if not Sounds.alertSoundFileSet[fileName] then
 		  if not soundWarningsLogged[fileName] then
@@ -171,5 +173,10 @@ Sounds.refreshAlertSoundFiles = refreshAlertSoundFiles
 Sounds.describeAlertSound = describeAlertSound
 Sounds.isAlertSoundPlaying = isAlertSoundPlaying
 Sounds.hiddenSoundQueue = hiddenSoundQueue
+Sounds.getAndClearMissingSound = function()
+  local result = lastMissingSoundFileName
+  lastMissingSoundFileName = nil
+  return result
+end
 
 return Sounds
