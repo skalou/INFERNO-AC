@@ -7,7 +7,7 @@ local defaultAlertSoundFile = '00defaultALERT.wav'
 local App = {
   folderName = 'INFERNO-ChatAlerts',
   displayName = 'INFERNO-Chat Alerts',
-  version = '0.4.0',
+  version = '0.5.0',
   channel = 'beta',
 }
 App.versionLabel = App.version .. '-' .. App.channel
