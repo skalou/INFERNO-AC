@@ -2,3 +2,18 @@
 *.wav binary
 *.mp3 binary
 *.png binary
+
+# Release: Exclude these files/folders from GitHub "Download ZIP"
+.git export-ignore
+.vs export-ignore
+.gitignore export-ignore
+.gitattributes export-ignore
+deploy.ps1 export-ignore
+dev-release.ps1 export-ignore
+Dev-Sounds/ export-ignore
+INFERNO-DEV/ export-ignore
+icons/ export-ignore
+tools/ export-ignore
+session-state/ export-ignore
+README_AI_NOTES.md export-ignore
+*.code-workspace export-ignore

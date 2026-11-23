@@ -21,3 +21,6 @@ tools/last-run.txt
 
 # Work-in-progress icon drafts (not part of the release)
 icons/WIP-icons/
+
+# Work-in-progress feature branches (not part of the release)
+INFERNO-WIP/
