@@ -6,6 +6,25 @@ local iconFilter = ''
 local lastCopied = nil
 local lastSymbolCopied = nil
 
+-- Debug Capture functionality (from DEBUG-CAPTURE mod)
+local debugCaptureEnabled = false
+local captureTag = 'inferno-debug'
+local captureStatus = 'En attente de capture'
+local captureCount = 0
+local isBusy = false
+local pollInterval = 0.5
+local pollTimer = 0
+local devAppFolder = ac.getFolder(ac.FolderID.ACApps) .. '\\lua\\INFERNO-DEV'
+local captureRequestPath = devAppFolder .. '\\capture-request.txt'
+local captureTriggerPath = devAppFolder .. '\\capture.now'
+local capturesShotsFolder = devAppFolder .. '\\capture-shots'
+
+-- Initialize capture folder
+io.createDir(capturesShotsFolder)
+if not io.fileExists(captureRequestPath) then
+  io.save(captureRequestPath, captureTag .. '\r\n', true)
+end
+
 -- Sample of Unicode symbols usable as text: { character, code point }.
 local symbolGroups = {
   { 'Cercles et formes', {
@@ -45,6 +64,108 @@ end
 local function matchesFilter(name)
   if iconFilter == '' then return true end
   return string.find(string.lower(name), string.lower(iconFilter), 1, true) ~= nil
+end
+
+-- Debug Capture utility functions
+local function sanitizeTag(raw)
+  local tag = (raw or ''):gsub('^%s+', ''):gsub('%s+$', ''):gsub('%s+', '_'):gsub('[^%w_%-]', '')
+  if tag == '' then tag = 'shot' end
+  return tag:sub(1, 40)
+end
+
+local function sanitizeField(value)
+  return (tostring(value or ''):gsub('[|\r\n]', ' '))
+end
+
+local function writeLayout(filePath)
+  local sim = ac.getSim()
+  local uiState = ac.getUI()
+  local lines = {
+    'sim_window_px=' .. sim.windowWidth .. ',' .. sim.windowHeight,
+    'sim_fullscreen=' .. tostring(sim.isFullscreen),
+    string.format('ui_scale=%.4f', uiState.uiScale),
+    string.format('ui_window=%.2f,%.2f', uiState.windowSize.x, uiState.windowSize.y),
+  }
+  for _, window in ipairs(ac.getAppWindows()) do
+    lines[#lines + 1] = table.concat({
+      'window',
+      'name=' .. sanitizeField(window.name),
+      'title=' .. sanitizeField(window.title),
+      string.format('x=%.2f', window.position.x),
+      string.format('y=%.2f', window.position.y),
+      string.format('w=%.2f', window.size.x),
+      string.format('h=%.2f', window.size.y),
+      'visible=' .. tostring(window.visible),
+      'layer=' .. tostring(window.layer),
+    }, '|')
+  end
+  io.save(filePath, table.concat(lines, '\r\n') .. '\r\n', true)
+end
+
+local function takeCapture(tag)
+  isBusy = true
+  local baseName = os.date('%Y%m%d_%H%M%S') .. '_' .. sanitizeTag(tag)
+  local fileName = baseName .. '.png'
+  local filePath = capturesShotsFolder .. '\\' .. fileName
+  pcall(writeLayout, capturesShotsFolder .. '\\' .. baseName .. '.layout.txt')
+  ac.makeSimpleScreenshot(ac.ScreenshotFormat.PNG, function(err, data)
+    isBusy = false
+    if err or not data then
+      captureStatus = 'Erreur capture : ' .. tostring(err)
+      return
+    end
+    if io.save(filePath, data, true) then
+      captureCount = captureCount + 1
+      captureStatus = 'Capture : capture-shots\\' .. fileName
+    else
+      captureStatus = 'Ecriture impossible : ' .. filePath
+    end
+  end)
+end
+
+local function saveCaptureTag(value)
+  io.save(captureRequestPath, value .. '\r\n', true)
+end
+
+local function checkCaptureTrigger()
+  if isBusy or not io.fileExists(captureTriggerPath) then return end
+  io.deleteFile(captureTriggerPath)
+  takeCapture(captureTag)
+end
+
+local function drawDebugCaptureTab()
+  ui.text('Screen capture (HUD + CSP apps)')
+  ui.separator()
+
+  ui.text('Tag keyword:')
+  ui.setNextItemWidth(260)
+  local newTag, changed = ui.inputText('##captureTag', captureTag)
+  if changed then
+    captureTag = newTag
+    saveCaptureTag(captureTag)
+  end
+  ui.sameLine()
+
+  if ui.button('Capture', vec2(100, 0)) and not isBusy then
+    takeCapture(captureTag)
+  end
+
+  if ui.iconButton(ui.Icons.Folder, 18) then
+    os.openInExplorer(capturesShotsFolder)
+  end
+  ui.sameLine()
+  ui.text('Folder: capture-shots\\')
+
+  ui.separator()
+  ui.text('Captures: ' .. captureCount)
+  if isBusy then
+    ui.textColored('In progress...', rgbm(1, 1, 0.3, 1))
+  else
+    ui.textWrapped(captureStatus)
+  end
+
+  ui.separator()
+  ui.textWrapped('Create an empty capture.now file in the app folder to trigger capture without button.')
 end
 
 local function drawIconsTab()
@@ -124,9 +245,17 @@ local function drawTitleMarker()
 end
 
 function windowDev(dt)
+  -- Debug Capture polling
+  pollTimer = pollTimer + dt
+  if pollTimer >= pollInterval then
+    pollTimer = 0
+    checkCaptureTrigger()
+  end
+
   drawTitleMarker()
   if not icons then icons = loadIcons() end
   ui.tabBar('devTabs', function()
+    ui.tabItem('Debug Capture', drawDebugCaptureTab)
     ui.tabItem('Icons', drawIconsTab)
     ui.tabItem('Symbols', drawSymbolsTab)
     ui.tabItem('Info', drawInfoTab)
