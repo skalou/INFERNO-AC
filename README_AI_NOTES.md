@@ -20,6 +20,8 @@ First INFERNO-AC release, after IsuChat Alert 2.8.2 (0.3.0 was planned but never
 - Test tools added in `tools\` (static check, LuaJIT harness with CSP stubs and targeted checks).
 - Language support: "Détection automatique" by default (the first entry of the list). It reads `LANGUAGE=` under `[WINDOW]` in `Documents\Assetto Corsa\cfg\launcher.ini`, the language chosen in the AC launcher, and maps it to a pack (`en-US` → `en`, `es-419` → `es`, `pt-BR`/`zh-CN`/`zh-TW` exact). Codes without a pack (for example `pt-PT`, `ja`) and a missing file fall back to English. The combo shows the detected language name. The English flag selects `en`, and Reset all settings selects `auto`. Settings saved with the old `en` default keep English until the user picks "Détection automatique". Assumes the in-game menus follow the launcher language. Packs: French, German, Italian, Spanish, Brazilian Portuguese, Russian, Polish, Turkish, Dutch, Czech, Hungarian, Romanian, Swedish, Finnish, Ukrainian, Simplified Chinese and Traditional Chinese (18 total, listed in `core/i18n.lua`). Chosen in the Tips and Tools tabs. Packs are in `lang\<code>.lua` and map the English text (the key) to the translation. The English text is the fallback for any missing key. `lang\fr.lua` is the reference key set. The other packs are machine-drafted and need native-speaker review. The harness checks that every pack has the same keys and placeholders.
 - Reset all settings also resets the language, the Tips checkbox and the positions of the chat and settings windows.
+- Alerts tab: deleting an alert asks for confirmation. The trash icon shows "Delete this alert?" with a checkbox on a pulsing orange background. Tick the checkbox to delete; a second click on the trash icon cancels.
+- Alerts tab: the friend setting appears twice on purpose, as a checkbox in the tab header and as the built-in "Messages from friends" row. Both control `settings.alertFriendMessage`.
 
 ## File formats (0.4.0)
 
@@ -28,6 +30,33 @@ First INFERNO-AC release, after IsuChat Alert 2.8.2 (0.3.0 was planned but never
 - Shared keyword list (`SharedKeywords\*.json`, `ServerSharedKeywords\*.json`): envelope `{ format = 'INFERNO-KeywordList', formatVersion = 1, appVersion, payload, checksum }` (`core/sharing.lua`). `.txt` lists (one keyword per line) are also accepted.
 - Rule: a file is read only if `format` and `formatVersion` match exactly; nothing is converted. When a format changes, bump its version and decide explicitly whether to read the previous one. The app version is informational only and is never compared. Removing a field does not bump the version: readers ignore unknown fields, so files written earlier still import.
 - Keyword list in settings and profiles: `keywordRows` = `'v1:'` + `'=<encoded keyword>'` entries separated by `;`. Default: `settings.defaultKeywordRows` (`'v1:'`, empty).
+
+## Session Update (NuitdeOUF: server alerts removed, lost features restored)
+
+- Branches and tags (repository `Documents\Dev\INFERNO-AC`, remote not pushed):
+  - `main` (`147eacc`): still contains the old server-alert work. Not touched.
+  - `wip/alerts-delete-confirm` (`4f0b2a4`): delete confirmation, crash fix, sticky header frame, backup window-key exclusion, on top of `6328088`.
+  - `wip/restore-lost-features` (`efbfa5c`, then `267ccbe`): the restore below, on top of `4f0b2a4`. This is the working branch.
+  - `NuitdeOUF` (branch and annotated tag, both on `efbfa5c`): validated snapshot named by the user. Delete confirmation with the orange blink was confirmed in game. `267ccbe` is the only change after it.
+- Server alerts are removed on the WIP branches. Do not restore `ui/alerts_tab.lua`, `core/server_alerts.lua`, `core/modules.lua` or `INFERNO-ChatAlerts.lua` from `ffb8e0d` (`Checkpoint: before refactoring server alerts`): they contain the removed server integration. Other files from `ffb8e0d` were restored selectively.
+- Restored from `ffb8e0d`: friend gating in `core/chat.lua`, sticky tab headers (`drawDisplayTabHeader`, `drawToolsTabHeader`, `drawTipsTabHeader`, `drawHistoryTabHeader`, exported by their tab modules), Tools tab default-sound colour and debug-mode placement, `icon_config.png` and the DEV icon in `deploy.ps1`, `ICON=` in `manifest.ini`, `icons/WIP-icons/` in `.gitignore`, French key for the friend label, harness `ac.storage` string-key stub and `TreeNodeFlags`.
+- Delete confirmation (`ui/alerts_tab.lua`): state is module-level (`removedKeywordIndex`, `deleteKeywordConfirmed`) because immediate-mode locals reset every frame. Deletion runs after the row loop with `table.remove`. Do not use popups: `ui.beginPopupModal` returns nil and `ui.modalPopup` misbehaved.
+- Fixes made while validating:
+  - Config window crash `attempt to index local 'list'`: `alerts_tab.lua` imported `userKeywordList`/`serverKeywordList`, which `core/keywords.lua` does not export. Local adapter used instead.
+  - `backup.lua` `applyAllSettings` skips `mainWindowPosition`/`mainWindowSize`. `ac.storage` rejects table values and raises "Unknown key" for unregistered keys.
+  - Play on an alert whose sound file is missing called `soundPicker.restartMissingFlash`, which is defined nowhere. The call was removed. The red missing-sound flash from checkpoint 009 was never saved in any commit or file, so it is lost and must be redesigned if wanted.
+  - `soundPicker.durationOf` returns nil for a sound absent from `Sounds.alertSoundFileSet` instead of concatenating nil.
+  - Leftover `serverAlertsEnabled` defaults removed from `core/settings.lua` and `ui/widgets.lua`.
+- Harness: `tools\run-tests.ps1` passes (42 checks). New stubs: `itemDeactivatedAfterEdit`, `getItemRectSize`, `keyboardButtonPressed`. A missing stub shows as `missing ui stub: <name>`: add it to `tools\harness.lua` rather than editing the app code.
+- Still open:
+  - Lost missing-sound flash (above).
+  - Special friend/player rows from `ffb8e0d` are already present in the current list (see the changelog entry above). Keep both friend controls as decided.
+- Deploy: `deploy.ps1` copies with robocopy `/E` and does not purge. Files removed from the repository stay in the game folder and must be deleted by hand.
+- Next session checklist:
+  1. `git switch wip/restore-lost-features` (or `git switch NuitdeOUF` to get back the validated state).
+  2. `powershell -ExecutionPolicy Bypass -File .\tools\run-tests.ps1` (expect 42/42).
+  3. `powershell -ExecutionPolicy Bypass -File .\deploy.ps1`, then in game: Config opens without error, all tab headers render, friend checkbox works, delete confirmation works, Play on a missing-sound alert does not crash.
+- Tooling note: `replace_string_in_file` can fail on mixed tab/space indentation in `alerts_tab.lua`; copy indentation exactly from the view output. PowerShell here-strings do not work in the `git commit` call here: write the message to a file and use `git commit -F`.
 
 ## Session Update (INFERNO-AC rename)
 
