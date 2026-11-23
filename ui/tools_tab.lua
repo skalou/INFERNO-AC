@@ -36,6 +36,13 @@ local debugColorRows = {
 local editWidth, resetWidth = 32, 20
 -- Offset of the label after its checkbox, read on each row and used by the layout of the next frame.
 local checkboxLabelOffset = 24
+-- Cache vehicle/server info: check only on tab open or config open, not every frame
+local debugInfoCache = {
+  vehicleName = ac.getCarName(0) or ac.getCarID(0) or tr('No car'),
+  serverName = ac.getServerName() or tr('Offline'),
+  lastUpdateTime = 0,
+  updateInterval = 2.0  -- Update every 2 seconds minimum (not every frame)
+}
 
 local function debugColorLayout(originX)
   local maxLabel = 0
@@ -150,10 +157,17 @@ local function drawToolsTab()
   ui.sameLine(iconOffset)
   ui.image('icon.png', vec2(iconSize, iconSize))
   ui.separator()
-  local vehicleName = ac.getCarName(0) or ac.getCarID(0) or tr('No car')
-  Widgets.text(tr('Current vehicle: %s', vehicleName))
-  local serverName = ac.getServerName() or tr('Offline')
-  Widgets.text(tr('Server: %s', serverName))
+
+  -- Update vehicle/server cache only every 2 seconds (not every frame)
+  local currentTime = ui.time()
+  if currentTime - debugInfoCache.lastUpdateTime >= debugInfoCache.updateInterval then
+	debugInfoCache.vehicleName = ac.getCarName(0) or ac.getCarID(0) or tr('No car')
+	debugInfoCache.serverName = ac.getServerName() or tr('Offline')
+	debugInfoCache.lastUpdateTime = currentTime
+  end
+
+  Widgets.text(tr('Current vehicle: %s', debugInfoCache.vehicleName))
+  Widgets.text(tr('Server: %s', debugInfoCache.serverName))
   local debugOff = not settings.debugEnabled
   ui.indent(22)
   if debugOff then ui.pushDisabled() end
@@ -161,13 +175,13 @@ local function drawToolsTab()
     settings.debugTraceEnabled = not settings.debugTraceEnabled
   end
   if ui.button(tr('Print debug to log'), vec2(-0.1, 0)) then
-	Debug.info(App.displayName .. ' Debug Info:')
-	Debug.info('  App version: ' .. App.versionLabel)
-	Debug.info('  CSP Version: ' .. tostring(cspVersion))
-	Debug.info('  UI Scale: ' .. tostring(uiScale))
-	Debug.info('  Vehicle: ' .. vehicleName)
-	Debug.info('  Server: ' .. serverName)
-	Debug.info('  Test mode: ' .. tostring(Alert.testMode))
+   Debug.info(App.displayName .. ' Debug Info:')
+   Debug.info('  App version: ' .. App.versionLabel)
+   Debug.info('  CSP Version: ' .. tostring(cspVersion))
+   Debug.info('  UI Scale: ' .. tostring(uiScale))
+   Debug.info('  Vehicle: ' .. debugInfoCache.vehicleName)
+   Debug.info('  Server: ' .. debugInfoCache.serverName)
+   Debug.info('  Test mode: ' .. tostring(Alert.testMode))
   end
   if debugOff then ui.popDisabled() end
   ui.unindent(22)
