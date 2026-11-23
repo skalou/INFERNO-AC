@@ -12,6 +12,7 @@ return {
   -- Built-in alert labels
   ["Your name is mentioned"] = [[Ditt namn nämns]],
   ["Messages from friends"] = [[Meddelanden från vänner]],
+  ["Alert when the author is a friend"] = [[Larma när författaren är en vän]],
 
   -- Alert window
   ["Chat preview - move or resize this window to position your alert."] = [[Chattförhandsvisning - flytta eller ändra storlek på fönstret för att placera din avisering.]],

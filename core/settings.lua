@@ -24,7 +24,6 @@ local settings = ac.storage({
   mentionMe = true,
   mentionSoundMuted = false,
   alertFriendMessage = true,
-  serverAlertsEnabled = true,
   showAllChatMessages = false,
   textSize = 20,
   duration = 3.0,

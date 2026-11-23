@@ -12,6 +12,7 @@ return {
   -- Built-in alert labels
   ["Your name is mentioned"] = [[你的名字被提及]],
   ["Messages from friends"] = [[好友的訊息]],
+  ["Alert when the author is a friend"] = [[作者為好友時提醒]],
 
   -- Alert window
   ["Chat preview - move or resize this window to position your alert."] = [[聊天預覽：移動或調整此視窗大小，以設定警示的位置。]],

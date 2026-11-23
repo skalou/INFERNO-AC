@@ -3,6 +3,7 @@ local modules = require('core.modules')
 local TipsTab = modules.tipsTab
 local settings = modules.settings.settings
 local Widgets = modules.widgets
+local tr = modules.i18n.tr
 
 local sections = {
   { 'Getting started', {
@@ -42,15 +43,15 @@ local sections = {
   } },
 }
 
-local function drawTipsTab()
-  local tr = modules.i18n.tr
+local function drawTipsTabHeader()
   modules.widgets.drawLanguageSelector('##tipsLanguage', 'Language / ' .. tr('Language'))
 
   if ui.checkbox(tr('I understand (move the Tips tab to the end)') .. '##tipsUnderstood', settings.tipsUnderstood) then
     settings.tipsUnderstood = not settings.tipsUnderstood
   end
-  ui.separator()
+end
 
+local function drawTipsTab()
   for index, section in ipairs(sections) do
     if index > 1 then ui.separator() end
     ui.header(tr(section[1]))
@@ -61,5 +62,6 @@ local function drawTipsTab()
 end
 
 TipsTab.drawTipsTab = drawTipsTab
+TipsTab.drawTipsTabHeader = drawTipsTabHeader
 
 return TipsTab

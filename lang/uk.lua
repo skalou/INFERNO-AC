@@ -12,6 +12,7 @@ return {
   -- Built-in alert labels
   ["Your name is mentioned"] = [[Ваше ім'я згадано]],
   ["Messages from friends"] = [[Повідомлення від друзів]],
+  ["Alert when the author is a friend"] = [[Сповіщати, якщо автор — друг]],
 
   -- Alert window
   ["Chat preview - move or resize this window to position your alert."] = [[Попередній перегляд чату — перемістіть або змініть розмір цього вікна, щоб розташувати сповіщення.]],

@@ -15,6 +15,7 @@ local saveDebugColors = modules.widgets.saveDebugColors
 local drawColorButton = modules.widgets.drawColorButton
 local drawColorSwatch = modules.widgets.drawColorSwatch
 local drawLanguageSelector = modules.widgets.drawLanguageSelector
+local debugColorNormalDefault = modules.widgets.debugColorNormalDefault
 local friendList = modules.friends.friendList
 local resetAudioSettings = modules.backup.resetAudioSettings
 local resetAlertAppearanceSettings = modules.backup.resetAlertAppearanceSettings
@@ -29,6 +30,7 @@ local debugColorRows = {
   { 'Scrollbar background', 'scrollbarBg' },
   { 'Used sound (already in an alert)', 'usedSound' },
   { 'Selected sound (this alert)', 'selectedSound' },
+  { 'Default sound (00defaultALERT.wav)', 'defaultSound' },
   { 'Keyword row frame', 'rowFrame' },
 }
 local editWidth, resetWidth = 32, 20
@@ -44,6 +46,7 @@ local function debugColorLayout(originX)
   layout.defaultX = layout.resetX + resetWidth + 16
   layout.normalX = layout.defaultX + math.max(editWidth, ui.measureText(tr('Debug default')).x) + 16
   layout.normalResetX = layout.normalX + editWidth + 10
+  layout.normalDefaultX = layout.normalResetX + resetWidth + 16
   return layout
 end
 
@@ -54,6 +57,8 @@ local function drawDebugColorHeader(layout)
   Widgets.textDisabled(tr('Debug default'))
   ui.sameLine(layout.originX + layout.normalX)
   Widgets.textDisabled(tr('Normal'))
+  ui.sameLine(layout.originX + layout.normalDefaultX)
+  Widgets.textDisabled(tr('Normal default'))
 end
 
 local function drawDebugColorSetting(label, key, layout)
@@ -103,6 +108,14 @@ local function drawDebugColorSetting(label, key, layout)
   end
   ui.popID()
   Widgets.settingTooltip('normalColorReset', normal)
+  ui.sameLine(layout.originX + layout.normalDefaultX)
+  drawColorSwatch(debugColorNormalDefault(key))
+end
+
+local function drawToolsTabHeader()
+  if sliders.checkbox(tr('Debug mode (general)'), settings.debugEnabled, sliders.defaults.debugEnabled, 'debugEnabled', ui.Icons.Bug) then
+	settings.debugEnabled = not settings.debugEnabled
+  end
 end
 
 local function drawToolsTab()
@@ -141,9 +154,6 @@ local function drawToolsTab()
   Widgets.text(tr('Current vehicle: %s', vehicleName))
   local serverName = ac.getServerName() or tr('Offline')
   Widgets.text(tr('Server: %s', serverName))
-  if sliders.checkbox(tr('Debug mode (general)'), settings.debugEnabled, sliders.defaults.debugEnabled, 'debugEnabled', ui.Icons.Bug) then
-    settings.debugEnabled = not settings.debugEnabled
-  end
   local debugOff = not settings.debugEnabled
   ui.indent(22)
   if debugOff then ui.pushDisabled() end
@@ -201,6 +211,11 @@ local function drawToolsTab()
 	handleChatMessage(Debug.simulator.text, nil, Debug.simulator.author ~= '' and Debug.simulator.author or 'Simulated driver', Debug.simulator.friend)
   end
   ui.separator()
+  ui.unindent(22)
+  if debugOff then ui.popDisabled() end
+  ui.separator()
+  if debugOff then ui.pushDisabled() end
+  ui.indent(22)
   if sliders.checkbox(tr('Diagnostic colors'), settings.debugModeEnabled, sliders.defaults.debugModeEnabled, 'debugModeEnabled') then
     settings.debugModeEnabled = not settings.debugModeEnabled
   end
@@ -208,13 +223,15 @@ local function drawToolsTab()
     local layout = debugColorLayout(ui.getCursorX())
     drawDebugColorHeader(layout)
     for _, row in ipairs(debugColorRows) do drawDebugColorSetting(tr(row[1]), row[2], layout) end
+    ui.separator()
+    debugColors.buttonOverflow = sliders.withDefault(tr('Color button overflow'), debugColors.buttonOverflow, 0, 20, '%.1f%%', sliders.defaults.buttonOverflow, 0.1, 'buttonOverflow')
   end
   ui.unindent(22)
   if debugOff then ui.popDisabled() end
-  debugColors.buttonOverflow = sliders.withDefault(tr('Color button overflow'), debugColors.buttonOverflow, 0, 20, '%.1f%%', sliders.defaults.buttonOverflow, 0.1, 'buttonOverflow')
   saveDebugColors()
 end
 
 ToolsTab.drawToolsTab = drawToolsTab
+ToolsTab.drawToolsTabHeader = drawToolsTabHeader
 
 return ToolsTab

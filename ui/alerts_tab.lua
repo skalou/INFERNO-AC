@@ -323,10 +323,6 @@ function drawKeywordList(list, drafts, drag, options)
 	  else
 		soundTestFrameCounters[keywordTestKey] = nil
 	  end
-	  if selectedSound and not Sounds.alertSoundFileSet[selectedSound] then
-		local flashKey = '##keywordSound' .. ':' .. tostring(index) .. ':' .. tostring(selectedSound or '')
-		soundPicker.restartMissingFlash(flashKey)
-	  end
 	end
 	ui.sameLine()
 	ui.setNextItemWidth(90)

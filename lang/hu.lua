@@ -12,6 +12,7 @@ return {
   -- Built-in alert labels
   ["Your name is mentioned"] = [[A neved szerepel]],
   ["Messages from friends"] = [[Barátok üzenetei]],
+  ["Alert when the author is a friend"] = [[Riasztás, ha a szerző barát]],
 
   -- Alert window
   ["Chat preview - move or resize this window to position your alert."] = [[Chat előnézet - húzd vagy méretezd át ezt az ablakot a riasztás elhelyezéséhez.]],

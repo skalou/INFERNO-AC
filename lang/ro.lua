@@ -12,6 +12,7 @@ return {
   -- Built-in alert labels
   ["Your name is mentioned"] = [[Numele tău este menționat]],
   ["Messages from friends"] = [[Mesaje de la prieteni]],
+  ["Alert when the author is a friend"] = [[Alertează când autorul este un prieten]],
 
   -- Alert window
   ["Chat preview - move or resize this window to position your alert."] = [[Previzualizare chat - mută sau redimensionează această fereastră pentru a poziționa alerta.]],

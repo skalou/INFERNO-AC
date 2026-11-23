@@ -14,7 +14,7 @@ local longPreviewMessage = 'This is a long chat preview to check how the alert w
 
 local triggerTestAlert
 
-local function drawDisplayTab()
+local function drawDisplayTabHeader()
   ui.header(tr('Test & Preview'))
   if ui.button(tr('Test short preview'), vec2(-0.1, 0)) then
 	triggerTestAlert('short')
@@ -32,8 +32,9 @@ local function drawDisplayTab()
 	Alert.firstScrollComplete = false
 	Alert.measuredMessage = nil
   end
+end
 
-  ui.separator()
+local function drawDisplayTab()
   ui.header(tr('Display Settings'))
   if sliders.checkbox(tr('Show all chat messages'), settings.showAllChatMessages, sliders.defaults.showAllChatMessages, 'showAllChatMessages') then
 	settings.showAllChatMessages = not settings.showAllChatMessages
@@ -78,5 +79,6 @@ function triggerTestAlert(messageType)
 end
 
 DisplayTab.drawDisplayTab = drawDisplayTab
+DisplayTab.drawDisplayTabHeader = drawDisplayTabHeader
 
 return DisplayTab

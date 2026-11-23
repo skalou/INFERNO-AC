@@ -12,6 +12,7 @@ return {
   -- Built-in alert labels
   ["Your name is mentioned"] = [[Vaše jméno je zmíněno]],
   ["Messages from friends"] = [[Zprávy od přátel]],
+  ["Alert when the author is a friend"] = [[Upozornit, když je autor přítel]],
 
   -- Alert window
   ["Chat preview - move or resize this window to position your alert."] = [[Náhled chatu – přesuňte nebo změňte velikost tohoto okna a umístěte upozornění.]],

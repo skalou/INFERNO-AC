@@ -130,6 +130,7 @@ local sliders = {
     buttonOverflow = 5,
     soundEnabled = true,
     mentionMe = true,
+    alertFriendMessage = true,
     showAllChatMessages = false,
     hideWhenNotHovered = false,
     backgroundEnabled = false,
@@ -228,6 +229,7 @@ function soundPicker.durationOf(fileName)
   local cached = soundPicker.durations[fileName]
   if cached == nil then
 	if not ac.isAudioReady() then return nil end
+	if not Sounds.alertSoundFileSet[fileName] then return nil end
 	local ok, sound = pcall(ac.AudioEvent.fromFile, {
 	  filename = soundFolder .. '\\' .. Sounds.alertSoundFileSet[fileName],
 	  use3D = false,
@@ -277,12 +279,17 @@ function soundPicker.drawSoundRow(rowId, fileName, label, selected, usedSounds, 
   ui.sameLine(0, 8)
   local duration = soundPicker.durationOf(fileName)
   if duration then label = label .. '  ' .. string.format('%.1fs', duration) end
+
   local color = nil
   if selected then
-    color = soundPicker.selectedColor()
+	color = soundPicker.selectedColor()
+  elseif fileName == defaultAlertSoundFile then
+	-- Default sound gets its diagnostic color (debug or normal depending on settings)
+	color = soundPicker.defaultColor()
   elseif usedSounds[fileName] == true then
-    color = soundPicker.usedColor()
+	color = soundPicker.usedColor()
   end
+
   if color then ui.pushStyleColor(ui.StyleColor.Text, color) end
   local picked = ui.selectable(label, selected)
   if color then ui.popStyleColor() end
@@ -293,19 +300,17 @@ function soundPicker.drawSoundRow(rowId, fileName, label, selected, usedSounds, 
   ui.popID()
 end
 
--- Sounds other than the default, grouped by sub-folder (the root first), in the same order as the folder dropdown.
+-- All sounds grouped by sub-folder (the root first), in the same order as the folder dropdown.
 function soundPicker.groupedSounds()
   local groups = {}
   local byFolder = {}
   for _, fileName in ipairs(Sounds.alertSoundFiles) do
-	if fileName ~= defaultAlertSoundFile then
-	  local folder = soundPicker.folderOf(fileName)
-	  if not byFolder[folder] then
-		byFolder[folder] = { folder = folder, files = {} }
-		groups[#groups + 1] = byFolder[folder]
-	  end
-	  table.insert(byFolder[folder].files, fileName)
+	local folder = soundPicker.folderOf(fileName)
+	if not byFolder[folder] then
+	  byFolder[folder] = { folder = folder, files = {} }
+	  groups[#groups + 1] = byFolder[folder]
 	end
+	table.insert(byFolder[folder].files, fileName)
   end
   table.sort(groups, function(a, b) return a.folder:lower() < b.folder:lower() end)
   return groups
@@ -384,10 +389,16 @@ function soundPicker.drawFile(id, selectedSound, width, phase, defaultValue, use
   local defaultLabel = tr('Default (%s)', defaultAlertSoundFile)
   soundPicker.drawSelector(id, isDefault and defaultLabel or describeAlertSound(selectedSound), width, phase, function()
 	  soundPicker.drawRecent(selectedSound, usedSounds, onPick)
+
+	-- Draw default sound with diagnostic color (debug or normal depending on settings)
+	local defaultColor = soundPicker.defaultColor()
+	if defaultColor then ui.pushStyleColor(ui.StyleColor.Text, defaultColor) end
 	if ui.selectable(defaultLabel, isDefault) then
 	  onPick(defaultValue)
 	end
+	if defaultColor then ui.popStyleColor() end
 	if isDefault then ui.setItemDefaultFocus() end
+
 	for _, group in ipairs(soundPicker.groupedSounds()) do
 	  Widgets.text(soundPicker.folderLabel(group.folder), rgbm(0.6, 0.6, 0.6, 1))
 	  for _, fileName in ipairs(group.files) do
@@ -407,6 +418,7 @@ local function newDebugColors()
     scrollbarBg = rgbm(0, 1, 0, 1),
     usedSound = rgbm(1, 0.85, 0.2, 1),
     selectedSound = rgbm(1, 0.5, 0, 1),
+    defaultSound = rgbm(1, 0.3, 0.8, 1),
     rowFrame = rowFrameDefault:clone(),
     buttonOverflow = sliders.defaults.buttonOverflow,
   }
@@ -415,9 +427,9 @@ local debugColors = newDebugColors()
 -- Untouched copy of the default debug colours, shown read-only and used by the per-colour reset.
 local debugColorDefaults = newDebugColors()
 
-local debugColorKeys = { 'background', 'childBg', 'scrollbarBg', 'usedSound', 'selectedSound', 'rowFrame' }
--- Colours switched off with their checkbox. A colour absent from this table is enabled.
-local debugColorDisabled = {}
+local debugColorKeys = { 'background', 'childBg', 'scrollbarBg', 'usedSound', 'selectedSound', 'defaultSound', 'rowFrame' }
+  -- Colours switched off with their checkbox. A colour absent from this table is enabled.
+  local debugColorDisabled = {}
 -- Normal (non-debug) colour of each diagnostic colour, used while Diagnostic colors or its checkbox is off. Editable from the Tools tab and stored in settings as text.
 local normalColorDefaults = {
   background = rgbm(0.14, 0.14, 0.14, 0.96),
@@ -425,6 +437,7 @@ local normalColorDefaults = {
   scrollbarBg = rgbm(0.02, 0.02, 0.02, 0.53),
   usedSound = rgbm(1, 0.85, 0.2, 1),
   selectedSound = rgbm(1, 0.5, 0, 1),
+  defaultSound = rgbm(1, 0.3, 0.8, 1),
   rowFrame = rowFrameDefault:clone(),
 }
 local normalColors = {}
@@ -436,6 +449,10 @@ end
 
 function Widgets.debugColorDefault(key)
   return debugColorDefaults[key]
+end
+
+function Widgets.debugColorNormalDefault(key)
+  return normalColorDefaults[key]
 end
 
 local function formatColor(c)
@@ -537,6 +554,11 @@ end
 -- The sound chosen for the alert being edited. It wins over the used colour, even when the same file is used elsewhere.
 function soundPicker.selectedColor()
   return debugColor('selectedSound')
+end
+
+-- The default alert sound. Always shown with its diagnostic color (debug or normal depending on settings).
+function soundPicker.defaultColor()
+  return debugColor('defaultSound')
 end
 
 -- The keyword row frame is always shown; its debug colour applies only while DEBUG mode and Diagnostic colors are on.

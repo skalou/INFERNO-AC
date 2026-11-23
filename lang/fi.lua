@@ -12,6 +12,7 @@ return {
   -- Built-in alert labels
   ["Your name is mentioned"] = [[Nimesi mainitaan]],
   ["Messages from friends"] = [[Viestit ystäviltä]],
+  ["Alert when the author is a friend"] = [[Hälytä, kun kirjoittaja on ystävä]],
 
   -- Alert window
   ["Chat preview - move or resize this window to position your alert."] = [[Chatin esikatselu – siirrä tai muuta tämän ikkunan kokoa sijoittaaksesi hälytyksen.]],

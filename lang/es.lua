@@ -12,6 +12,7 @@ return {
   -- Built-in alert labels
   ["Your name is mentioned"] = [[Se menciona su nombre]],
   ["Messages from friends"] = [[Mensajes de amigos]],
+  ["Alert when the author is a friend"] = [[Avisar cuando el autor es un amigo]],
 
   -- Alert window
   ["Chat preview - move or resize this window to position your alert."] = [[Vista previa del chat: mueva o redimensione esta ventana para colocar su alerta.]],

@@ -115,6 +115,11 @@ ac = {
   FolderID = setmetatable({}, { __index = function(_, k) return k end }),
   getFolder = function(id) return 'C:\\stub\\' .. tostring(id) end,
   storage = function(defaults, prefix)
+    if type(defaults) == 'string' then
+      KEY_STORE = KEY_STORE or {}
+      if KEY_STORE[defaults] == nil then KEY_STORE[defaults] = prefix end
+      return { get = function() return KEY_STORE[defaults] end, set = function(_, v) KEY_STORE[defaults] = v end }
+    end
     STORE = {}
     STORAGE_PREFIX = prefix
     for k, v in pairs(defaults) do STORE[k] = v end
@@ -177,7 +182,7 @@ local impl = {
   button = function() return PRESS end, iconButton = function() return PRESS end, checkbox = function() return PRESS end,
   selectable = function() return PRESS end, mouseClicked = function() return PRESS end, itemClicked = function() return PRESS end,
   beginCombo = function() return PRESS end, beginChild = function() return true end, itemHovered = function() return PRESS end,
-  itemActive = function() return false end, mouseDown = function() return false end, windowHovered = function() return PRESS end,
+  itemActive = function() return false end, itemDeactivatedAfterEdit = function() return false end, keyboardButtonPressed = function() return false end, getItemRectSize = function() return vec2(120, 20) end, mouseDown = function() return false end, windowHovered = function() return PRESS end,
   isWindowAppearing = function() return true end, colorPicker = function() return false end, colorButton = function() return false end,
   inputText = function(_, text) return text end, slider = function(_, v) return v end,
   tabBar = function(id, a, b) local fn = b or a; TAB_BAR = id; fn() end,
@@ -188,7 +193,7 @@ local impl = {
 for _, n in ipairs({ 'alignTextToFramePadding', 'beginGroup', 'beginOutline', 'dummy', 'drawRect', 'drawRectFilled', 'drawText', 'dwriteDrawTextClipped', 'endChild', 'endCombo', 'endGroup', 'endOutline', 'header', 'icon', 'image', 'indent', 'popDWriteFont', 'popDisabled', 'popID', 'popStyleColor', 'popStyleVar', 'pushDWriteFont', 'pushDisabled', 'pushID', 'pushStyleColor', 'pushStyleVar', 'sameLine', 'separator', 'setCursorX', 'setCursorY', 'setItemDefaultFocus', 'setNextItemWidth', 'setNextWindowContentSize', 'setNextWindowSizeConstraints', 'setScrollX', 'setScrollY', 'text', 'textColored', 'textDisabled', 'textWrapped', 'unindent', 'setTooltip' }) do impl[n] = noop end
 ui = {}
 for k, fn in pairs(impl) do ui[k] = counted(k, fn) end
-for _, e in ipairs({ 'Alignment', 'ColorPickerFlags', 'ComboFlags', 'CornerFlags', 'Icons', 'InputTextFlags', 'MouseButton', 'StyleColor', 'StyleVar', 'TabBarFlags', 'TabItemFlags', 'WindowFlags' }) do ui[e] = enum(e) end
+for _, e in ipairs({ 'Alignment', 'ColorPickerFlags', 'ComboFlags', 'CornerFlags', 'Icons', 'InputTextFlags', 'MouseButton', 'StyleColor', 'StyleVar', 'TabBarFlags', 'TabItemFlags', 'TreeNodeFlags', 'WindowFlags' }) do ui[e] = enum(e) end
 setmetatable(ui, { __index = function(_, k) error('missing ui stub: ' .. k) end })
 
 -- Scenario

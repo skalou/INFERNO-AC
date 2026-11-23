@@ -37,7 +37,7 @@ function alertHistory.drawEntries(limit)
 end
 
 -- Copy and clear for the History tab.
-function alertHistory.drawTab()
+local function drawHistoryTabHeader()
   Widgets.textWrapped(tr('%d of %d alerts this session. Kept in memory only and cleared when the app closes.', #alertHistory.items, alertHistory.max))
   if ui.button(tr('Copy history'), vec2(-0.1, 0)) then
     local lines = {}
@@ -49,7 +49,9 @@ function alertHistory.drawTab()
   if ui.button(tr('Clear history'), vec2(-0.1, 0)) then
     alertHistory.clear()
   end
-  ui.separator()
+end
+
+function alertHistory.drawTab()
   alertHistory.drawEntries()
 end
 

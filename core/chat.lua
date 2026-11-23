@@ -26,10 +26,10 @@ local function handleChatMessage(message, senderCarIndex, simulatedAuthor, simul
   end
   syncKeywordProfile()
   local playerMentioned = isPlayerMentioned(message)
-  local friendMessage = simulatedFriend or (senderCarIndex ~= nil and senderCarIndex >= 0 and friendList.isFriend(ac.getDriverName(senderCarIndex)))
-  -- Any car on the server counts as a player; the server itself (-1) does not.
+  local isFriend = simulatedFriend or (senderCarIndex ~= nil and senderCarIndex >= 0 and friendList.isFriend(ac.getDriverName(senderCarIndex)))
+  local friendMessage = settings.alertFriendMessage and isFriend or false
   local playerMessage = simulatedAuthor ~= nil or (senderCarIndex ~= nil and senderCarIndex >= 0)
-  local senderColor = friendMessage and settings.friendColor or (playerMessage and settings.playerColor) or nil
+  local senderColor = isFriend and settings.friendColor or (playerMessage and settings.playerColor) or nil
   local matchedAlert = findMatchedAlert(message, playerMentioned, friendMessage)
   -- Showing all messages does not make non-matching messages play a sound.
   if not matchedAlert and not settings.showAllChatMessages then

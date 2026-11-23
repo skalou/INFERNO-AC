@@ -12,6 +12,7 @@ return {
   -- Built-in alert labels
   ["Your name is mentioned"] = [[Adınız anılıyor]],
   ["Messages from friends"] = [[Arkadaş mesajları]],
+  ["Alert when the author is a friend"] = [[Yazar bir arkadaşsa uyar]],
 
   -- Alert window
   ["Chat preview - move or resize this window to position your alert."] = [[Sohbet önizlemesi - uyarınızı konumlandırmak için bu pencereyi taşıyın veya yeniden boyutlandırın.]],
