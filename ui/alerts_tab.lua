@@ -35,7 +35,7 @@ local keyEnter = 0x0D -- VK_RETURN: validates the keyword being typed.
 local userKeywordDrafts = { text = {}, volume = {} }
 local deleteKeywordConfirmed = false
 local removedKeywordIndex = nil
-local missingSoundStates = {}  -- Track blinking state for missing sounds
+local missingSoundStates = {}  -- Cache: { cachedSound, isMissing, startTime } - checked only when sound changes
 local drawKeywordList
 -- Track playback frame counters for sound test progress (simple approximation)
 local soundTestFrameCounters = {}
@@ -366,17 +366,22 @@ function drawKeywordList(list, drafts, drag, options)
 	-- Sound selector size measured, unused (kept for future reference)
 	local soundSelectorSize = ui.getItemRectSize()
 
-	-- Check if sound file is missing (not in the sounds list)
-	local isSoundMissing = selectedSound and selectedSound ~= '' and not Sounds.alertSoundFileSet[selectedSound]
+	-- Check if sound has changed: if so, verify if it's missing (only once per change)
+	local state = missingSoundStates[index]
+	if not state or state.cachedSound ~= selectedSound then
+	  -- Sound changed or first time: check if file exists in sounds list
+	  local isSoundMissing = selectedSound and selectedSound ~= '' and not Sounds.alertSoundFileSet[selectedSound]
+	  missingSoundStates[index] = {
+		cachedSound = selectedSound,
+		isMissing = isSoundMissing,
+		startTime = isSoundMissing and ui.time() or nil
+	  }
+	  state = missingSoundStates[index]
+	end
 
-	-- Draw red/white blinking background for missing sounds
-	if isSoundMissing then
-	  -- Initialize blinking state on first detection
-	  if not missingSoundStates[index] then
-		missingSoundStates[index] = { startTime = ui.time() }
-	  end
-
-	  local elapsed = ui.time() - missingSoundStates[index].startTime
+	-- Draw red/white blinking background for missing sounds (using cached state)
+	if state.isMissing then
+	  local elapsed = ui.time() - state.startTime
 	  local isBlink = math.floor(elapsed * 2) % 2 == 0  -- Alternate every 0.5s
 
 	  local rectSize = vec2(keywordSoundWidth, 20)
@@ -390,9 +395,6 @@ function drawKeywordList(list, drafts, drag, options)
 		local bgColor = rgbm(1, 1, 1, 0.3)  -- White with 30% opacity
 		ui.drawRectFilled(soundTextPos, soundTextPos + rectSize, bgColor, 2)
 	  end
-	else
-	  -- Sound is not missing, clear the blinking state
-	  missingSoundStates[index] = nil
 	end
 
 	ui.dummy(vec2(0, keywordRowPadding))
