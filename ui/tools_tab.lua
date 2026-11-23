@@ -157,10 +157,10 @@ local function drawToolsTab()
   ui.endGroup()
   ui.sameLine(iconOffset)
   -- Main app icon
-  ui.image('icon.png', vec2(iconSize, iconSize))
+  ui.image('icons/icon.png', vec2(iconSize, iconSize))
   ui.sameLine()
   -- Config window icon
-  ui.image('config-icon.png', vec2(iconSize, iconSize))
+  ui.image('icons/config-icon.png', vec2(iconSize, iconSize))
   ui.separator()
 
   -- Update vehicle/server cache only every 2 seconds (not every frame)

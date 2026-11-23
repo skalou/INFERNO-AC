@@ -744,7 +744,7 @@ local function drawLanguageSelector(id, label)
     modules.i18n.setLanguage('auto')
   end
   ui.sameLine()
-  ui.image('flag_en.png', vec2(flagWidth, flagHeight))
+  ui.image('icons/flag_en.png', vec2(flagWidth, flagHeight))
   if ui.itemClicked(ui.MouseButton.Left, true) then modules.i18n.setLanguage('en') end
 end
 

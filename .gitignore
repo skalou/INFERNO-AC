@@ -23,7 +23,11 @@ tools/node_modules/
 tools/last-run.txt
 
 # Work-in-progress icon drafts (not part of the release)
-icons/WIP-icons/
+# Only app-essential icons are tracked (icon.png, config-icon.png, flag_en.png)
+icons/*
+!icons/icon.png
+!icons/config-icon.png
+!icons/flag_en.png
 
 # Work-in-progress feature branches (not part of the release)
 INFERNO-WIP/
