@@ -53,6 +53,14 @@ $null = New-Item -ItemType Directory -Path $soundsDest -Force
 Copy-Item "sounds\DefaultAppSounds" -Destination $soundsDest -Recurse
 Write-Host "  + sounds/DefaultAppSounds/" -ForegroundColor Gray
 
+# Copy required icon files
+Write-Host ""
+Write-Host "Adding icons:" -ForegroundColor Cyan
+Copy-Item "icon.png" $tempDir
+Copy-Item "flag_en.png" $tempDir
+Write-Host "  + icon.png" -ForegroundColor Gray
+Write-Host "  + flag_en.png" -ForegroundColor Gray
+
 # Create ZIP archive
 Write-Host ""
 Write-Host "Creating ZIP archive..." -ForegroundColor Cyan
