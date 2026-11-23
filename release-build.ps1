@@ -51,7 +51,9 @@ Write-Host "Adding sounds:" -ForegroundColor Cyan
 $soundsDest = Join-Path $tempDir "sounds"
 $null = New-Item -ItemType Directory -Path $soundsDest -Force
 Copy-Item "sounds\DefaultAppSounds" -Destination $soundsDest -Recurse
+Copy-Item "sounds\MyCustomSoundsEXEMPLE" -Destination $soundsDest -Recurse
 Write-Host "  + sounds/DefaultAppSounds/" -ForegroundColor Gray
+Write-Host "  + sounds/MyCustomSoundsEXEMPLE/" -ForegroundColor Gray
 
 # Copy required icon files
 Write-Host ""
@@ -60,6 +62,12 @@ Copy-Item "icon.png" $tempDir
 Copy-Item "flag_en.png" $tempDir
 Write-Host "  + icon.png" -ForegroundColor Gray
 Write-Host "  + flag_en.png" -ForegroundColor Gray
+
+# Copy INFERNO-DEV app (developer tools)
+Write-Host ""
+Write-Host "Adding developer app:" -ForegroundColor Cyan
+Copy-Item "INFERNO-DEV" -Destination $tempDir -Recurse
+Write-Host "  + INFERNO-DEV/" -ForegroundColor Gray
 
 # Create ZIP archive
 Write-Host ""

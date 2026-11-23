@@ -9,11 +9,14 @@ debug_log.txt
 ServerSharedKeywords/
 
 # Game sounds: most are copyrighted extracts and must not be published.
-# Only the default alert is tracked.
+# Only the default alert and example custom sounds are tracked.
 sounds/*
 !sounds/DefaultAppSounds/
 sounds/DefaultAppSounds/*
 !sounds/DefaultAppSounds/00defaultALERT.wav
+!sounds/MyCustomSoundsEXEMPLE/
+sounds/MyCustomSoundsEXEMPLE/*
+!sounds/MyCustomSoundsEXEMPLE/*.mp3
 
 # Node modules of the test tools
 tools/node_modules/
