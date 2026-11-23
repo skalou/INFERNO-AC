@@ -59,10 +59,10 @@ Write-Host "  + sounds/MyCustomSoundsEXEMPLE/" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Adding icons:" -ForegroundColor Cyan
 Copy-Item "icon.png" -Destination $tempDir -Force
-Copy-Item "config-icon.png" -Destination $tempDir -Force
+Copy-Item "icon_config.png" -Destination $tempDir -Force
 Copy-Item "flag_en.png" -Destination $tempDir -Force
 Write-Host "  + icon.png" -ForegroundColor Gray
-Write-Host "  + config-icon.png" -ForegroundColor Gray
+Write-Host "  + icon_config.png" -ForegroundColor Gray
 Write-Host "  + flag_en.png" -ForegroundColor Gray
 
 # Copy INFERNO-DEV app (developer tools)

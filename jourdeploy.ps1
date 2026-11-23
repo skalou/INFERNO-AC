@@ -49,7 +49,7 @@ $rootFiles = @(
     "manifest.ini",
     "README.md",
     "icon.png",
-    "config-icon.png",
+    "icon_config.png",
     "flag_en.png"
 )
 

@@ -23,10 +23,10 @@ tools/node_modules/
 tools/last-run.txt
 
 # Work-in-progress icon drafts (not part of the release)
-# Only app-essential icons are tracked (icon.png, config-icon.png, flag_en.png)
+# Only app-essential icons are tracked (icon.png, icon_config.png, flag_en.png)
 # Icons are stored in root directories: INFERNO-ChatAlerts/ and INFERNO-DEV/
 !icon.png
-!config-icon.png
+!icon_config.png
 !flag_en.png
 icons/
 
