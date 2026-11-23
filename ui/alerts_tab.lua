@@ -374,7 +374,7 @@ function drawKeywordList(list, drafts, drag, options)
 	  missingSoundStates[index] = {
 		cachedSound = selectedSound,
 		isMissing = isSoundMissing,
-		startTime = isSoundMissing and ui.time() or nil
+		startTime = ui.time()  -- Always set, used only if isMissing is true
 	  }
 	  state = missingSoundStates[index]
 	end
