@@ -377,6 +377,13 @@ function drawKeywordList(list, drafts, drag, options)
 		startTime = ui.time()  -- Always set, used only if isMissing is true
 	  }
 	  state = missingSoundStates[index]
+	elseif state.isMissing then
+	  -- Sound hasn't changed, but re-check if file exists now (in case it was added to disk since last detection)
+	  local isSoundMissing = selectedSound and selectedSound ~= '' and not Sounds.alertSoundFileSet[selectedSound]
+	  if not isSoundMissing then
+		-- File was restored! Clear the missing state
+		state.isMissing = false
+	  end
 	end
 
 	-- Draw red/white blinking background for missing sounds (using cached state)
