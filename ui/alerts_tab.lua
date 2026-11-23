@@ -15,8 +15,9 @@ local soundPicker = modules.widgets.soundPicker
 local drawSoundFolderButton = modules.widgets.drawSoundFolderButton
 local specialAlertKeys = modules.keywords.specialAlertKeys
 local lowerText = modules.keywords.lowerText
-local saveKeywords = modules.keywords.saveKeywords
+local keywordKeyOf = modules.keywords.keywordKey
 local parseKeywords = modules.keywords.parseKeywords
+local saveKeywords = modules.keywords.saveKeywords
 local loadKeywordSoundAssignments = modules.keywords.loadKeywordSoundAssignments
 local saveKeywordSoundAssignments = modules.keywords.saveKeywordSoundAssignments
 local loadMutedKeywords = modules.keywords.loadMutedKeywords
@@ -30,33 +31,94 @@ local Debug = modules.debug.Debug
 local keywordDrag = modules.listDrag.new()
 AlertsTab.keywordDrag = keywordDrag
 local keywordRowPadding = 6
+local keyEnter = 0x0D -- VK_RETURN: validates the keyword being typed.
+local userKeywordDrafts = { text = {}, volume = {} }
+local deleteKeywordConfirmed = false
+local removedKeywordIndex = nil
+local drawKeywordList
+-- Track playback frame counters for sound test progress (simple approximation)
+local soundTestFrameCounters = {}
 
-local function drawAlertsTab()
+-- Edits not validated yet, keyed by row index. A list is saved only when a value is validated.
+local function clearKeywordDrafts(drafts)
+  drafts.text, drafts.volume = {}, {}
+end
+
+-- Keyword profiles hold only the user list, so only it triggers a profile save.
+local function saveUserKeywordProfile()
+  if Profiles.activeKeywordProfileKey then
+	saveKeywordProfile(Profiles.activeKeywordProfileKey)
+  elseif settings.useServerKeywordProfiles then
+	settings.keywordProfileFallback = stringify(captureKeywordProfile(), true)
+  end
+end
+
+-- Data access for the user keyword list, used by drawKeywordList.
+local userKeywordList = {
+  keywords = parseKeywords,
+  soundAssignments = loadKeywordSoundAssignments,
+  mutedKeywords = loadMutedKeywords,
+  options = keywordOptionStore.load,
+  option = keywordOptionStore.get,
+  commit = function(keywords, soundAssignments, mutedKeywords, keywordOptions)
+	local activeKeywords = {}
+	for _, keyword in ipairs(keywords) do
+	  local activeKey = keywordKeyOf(keyword)
+	  if activeKey ~= '' then activeKeywords[activeKey] = true end
+	end
+	for _, entries in ipairs({ soundAssignments, mutedKeywords, keywordOptions }) do
+	  for keyword in pairs(entries) do
+		if not activeKeywords[keyword] then entries[keyword] = nil end
+	  end
+	end
+	saveKeywords(keywords)
+	saveKeywordSoundAssignments(soundAssignments)
+	saveMutedKeywords(mutedKeywords)
+	keywordOptionStore.save(keywordOptions)
+  end,
+}
+
+-- Header content for Alerts tab: shown in sticky header frame
+local function drawAlertsTabHeader()
   if sliders.checkbox(tr('Play alert sound'), settings.soundEnabled, sliders.defaults.soundEnabled, 'soundEnabled') then
 	settings.soundEnabled = not settings.soundEnabled
   end
   settings.masterVolume = sliders.withDefault(tr('Master volume'), settings.masterVolume, 0, 300, '%.0f%%', sliders.defaults.masterVolume, 1, 'masterVolume', ui.Icons.Levels)
-  drawSoundFolderButton()
-  Widgets.textWrapped(tr('Available sounds: .wav and .mp3 files in the sounds folder and its subfolders. If a selected file is missing or cannot be loaded, %s is used instead.', defaultAlertSoundFile))
-  if not Sounds.alertSoundFileSet[defaultAlertSoundFile] then
-    Widgets.textWrapped(tr('Warning: the default sound %s is missing from the sounds folder. Alerts with a missing sound will be silent.', defaultAlertSoundFile))
-  end
   ui.separator()
   if sliders.checkbox(tr('Alert when my name is mentioned'), settings.mentionMe, sliders.defaults.mentionMe, 'mentionMe') then
 	settings.mentionMe = not settings.mentionMe
   end
+  if sliders.checkbox(tr('Alert when the author is a friend'), settings.alertFriendMessage, sliders.defaults.alertFriendMessage, 'alertFriendMessage') then
+	settings.alertFriendMessage = not settings.alertFriendMessage
+  end
+  ui.separator()
+end
+
+local function drawAlertsTab()
+  drawSoundFolderButton()
+  Widgets.textWrapped(tr('Available sounds: .wav and .mp3 files in the sounds folder and its subfolders. If a selected file is missing or cannot be loaded, %s is used instead.', defaultAlertSoundFile))
+  if not Sounds.alertSoundFileSet[defaultAlertSoundFile] then
+	Widgets.textWrapped(tr('Warning: the default sound %s is missing from the sounds folder. Alerts with a missing sound will be silent.', defaultAlertSoundFile))
+  end
   ui.separator()
   ui.header(tr('Alert keywords (priority order)'))
-  Widgets.textWrapped(tr('When several entries match, the first one in this list selects the sound. Drag the handle to reorder. The player mention and friend entries can be moved, muted or hidden, but not deleted.'))
-  local keywords = parseKeywords()
-  local keywordSoundAssignments = loadKeywordSoundAssignments()
-  local mutedKeywords = loadMutedKeywords()
-  local keywordOptions = keywordOptionStore.load()
+  Widgets.textWrapped(tr('When several entries match, the first one in this list selects the sound. Drag the handle to reorder. The player mention and friend entries can be moved, muted or hidden, but not deleted. Text changes are saved when you press Enter or leave the field.'))
+  drawKeywordList(userKeywordList, userKeywordDrafts, keywordDrag, { idPrefix = 'keyword', testPrefix = 'keyword:', isUser = true, afterSave = saveUserKeywordProfile })
+  end
+
+function drawKeywordList(list, drafts, drag, options)
+  local keywordDrag = drag
+  local keywords = list.keywords()
+  local keywordSoundAssignments = list.soundAssignments()
+  local mutedKeywords = list.mutedKeywords()
+  local keywordOptions = list.options()
   local keywordRowCenters = {}
   local keywordRowBounds = {}
   local keywordSettingsChanged = false
-  local removedKeywordIndex = nil
   local insertAfterIndex = nil
+
+  local shownBuiltInHeader = false
+  local shownCustomHeader = false
   if #keywords == 0 then
 	Widgets.text(tr('No alert keywords yet.'))
 	if ui.iconButton(ui.Icons.Plus, vec2(22, 22)) then
@@ -64,7 +126,21 @@ local function drawAlertsTab()
 	end
   end
   for index, keyword in ipairs(keywords) do
-	ui.pushID('keyword' .. index)
+	local isBuiltIn = keyword == specialAlertKeys.player or keyword == specialAlertKeys.friend
+
+	if isBuiltIn and not shownBuiltInHeader then
+	  if index > 1 then ui.separator() end
+	  Widgets.textWrapped(tr('Built-in Alerts - Player mention and friend messages'))
+	  shownBuiltInHeader = true
+	end
+
+	if options.isUser and not isBuiltIn and not shownCustomHeader then
+	  ui.separator()
+	  Widgets.textWrapped(tr('Custom Keywords - Sorted by priority (drag to reorder)'))
+	  shownCustomHeader = true
+	end
+
+	ui.pushID(options.idPrefix .. index)
 	local specialPrefix = keyword == specialAlertKeys.player and 'mention' or (keyword == specialAlertKeys.friend and 'friend') or nil
 	local isSpecial = specialPrefix ~= nil
 	local fieldText = specialAlertKeys.labels[keyword] and tr(specialAlertKeys.labels[keyword]) or keyword
@@ -84,10 +160,47 @@ local function drawAlertsTab()
 	ui.sameLine()
 	Widgets.text('#' .. index)
 	ui.sameLine()
+	local isSpecial = specialPrefix ~= nil
 	if isSpecial then
-	  ui.dummy(vec2(22, 22))
-	elseif ui.iconButton(ui.Icons.Trash, vec2(22, 22)) then
-	  removedKeywordIndex = index
+	  local isPlayerAlert = keyword == specialAlertKeys.player
+	  if isPlayerAlert then
+		if sliders.checkbox('##playerAlertEnabled', settings.mentionMe, sliders.defaults.mentionMe, 'mentionMe') then
+		  settings.mentionMe = not settings.mentionMe
+		end
+		ui.sameLine()
+	  elseif keyword == specialAlertKeys.friend then
+		if sliders.checkbox('##friendAlertEnabled', settings.alertFriendMessage, sliders.defaults.alertFriendMessage, 'alertFriendMessage') then
+		  settings.alertFriendMessage = not settings.alertFriendMessage
+		end
+		ui.sameLine()
+	  else
+		ui.dummy(vec2(22, 22))
+	  end
+	else
+	  if ui.iconButton(ui.Icons.Trash, vec2(22, 22)) then
+		if removedKeywordIndex == index then
+		  -- Deuxième click: cancel la suppression
+		  removedKeywordIndex = nil
+		  deleteKeywordConfirmed = false
+		else
+		  -- Premier click: marquer pour suppression
+		  removedKeywordIndex = index
+		  deleteKeywordConfirmed = false
+		end
+	  end
+	  ui.sameLine()
+	  if removedKeywordIndex == index then
+		-- Pulsing orange background (blinking effect)
+		local pulse = math.sin(ui.time() * 4) * 0.5 + 0.5  -- 0 to 1, pulsing at 4 Hz
+		local bgColor = rgbm(1, 0.6, 0, pulse * 0.6)  -- orange with pulsing alpha
+		ui.pushStyleColor(ui.StyleColor.FrameBg, bgColor)
+		Widgets.text(tr('Delete this alert?'))
+		ui.sameLine()
+		if ui.checkbox('##deleteConfirm_' .. index, deleteKeywordConfirmed) then
+		  deleteKeywordConfirmed = not deleteKeywordConfirmed
+		end
+		ui.popStyleColor()
+	  end
 	end
 	Widgets.text(isSpecial and tr('Built-in alert') or tr('Keyword or trigger phrase'))
 	if isSpecial then
@@ -101,7 +214,7 @@ local function drawAlertsTab()
 	local keywordContentWidth = math.max(keywordWidth, ui.measureText(fieldText).x + 24)
 	ui.pushStyleVar(ui.StyleVar.WindowPadding, vec2(0, 0))
 	ui.setNextWindowContentSize(vec2(keywordContentWidth, 0))
-	local updatedKeyword = keyword
+	local validatedKeyword = nil
 	if ui.beginChild('##keywordScroll', vec2(keywordWidth, 22), false, ui.WindowFlags.NoScrollbar) then
 	  ui.setNextItemWidth(keywordContentWidth)
 	  local keywordEmpty = keyword:match('^%s*$') ~= nil
@@ -112,8 +225,16 @@ local function drawAlertsTab()
 		ui.pushStyleColor(ui.StyleColor.FrameBgHovered, emptyFrameBg)
 		ui.pushStyleColor(ui.StyleColor.FrameBgActive, emptyFrameBg)
 	  end
-	  local typedKeyword = ui.inputText('##keywordValue', fieldText, isSpecial and ui.InputTextFlags.ReadOnly or 0)
-	  if not isSpecial then updatedKeyword = typedKeyword end
+	  local typedKeyword = ui.inputText('##keywordValue', drafts.text[index] or fieldText, isSpecial and ui.InputTextFlags.ReadOnly or 0)
+	  if not isSpecial then
+		local validated = ui.itemDeactivatedAfterEdit() or (ui.itemActive() and ui.keyboardButtonPressed(keyEnter, false))
+		if validated then
+		  drafts.text[index] = nil
+		  validatedKeyword = typedKeyword
+		else
+		  drafts.text[index] = typedKeyword ~= keyword and typedKeyword or nil
+		end
+	  end
 	  if keywordEmpty then
 		ui.popStyleColor(3)
 	  end
@@ -142,8 +263,8 @@ local function drawAlertsTab()
 	ui.endChild()
 	ui.popStyleVar()
 	local oldKey = lowerText(keyword:match('^%s*(.-)%s*$'))
-	local newKey = lowerText(updatedKeyword:match('^%s*(.-)%s*$'))
-	if updatedKeyword ~= keyword then
+	local newKey = lowerText((validatedKeyword or keyword):match('^%s*(.-)%s*$'))
+	if validatedKeyword and validatedKeyword ~= keyword then
 	  if oldKey ~= '' and newKey ~= '' and oldKey ~= newKey then
 		if keywordSoundAssignments[oldKey] and not keywordSoundAssignments[newKey] then
 		  keywordSoundAssignments[newKey] = keywordSoundAssignments[oldKey]
@@ -151,14 +272,14 @@ local function drawAlertsTab()
 		if mutedKeywords[oldKey] then mutedKeywords[newKey] = true end
 		if keywordOptions[oldKey] and not keywordOptions[newKey] then keywordOptions[newKey] = keywordOptions[oldKey] end
 	  end
-	  keywords[index] = updatedKeyword
+	  keywords[index] = validatedKeyword
 	  keywordSettingsChanged = true
 	end
 	ui.indent(22)
 	local keywordKey = newKey
 	local selectedSound
 	if isSpecial then selectedSound = settings[specialPrefix .. 'Sound'] else selectedSound = keywordSoundAssignments[keywordKey] end
-	local option = keywordOptionStore.get(keywordKey)
+	local option = list.option(keywordKey)
 	local function setSelectedSound(value)
 		  soundPicker.remember(value)
 	  if isSpecial then
@@ -193,20 +314,50 @@ local function drawAlertsTab()
 	  keywordSettingsChanged = true
 	end
 	ui.sameLine()
-	local keywordTestKey = specialPrefix or ('keyword:' .. keywordKey)
+	local keywordTestKey = specialPrefix or (options.testPrefix .. keywordKey)
 	if ui.iconButton(isSoundTestPlaying(keywordTestKey) and ui.Icons.Stop or ui.Icons.Play, vec2(22, 22)) then
 	  playAlertSound(selectedSound or defaultAlertSoundFile, true, keywordTestKey, option.volume)
+	  -- Reset frame counter for progress bar
+	  if isSoundTestPlaying(keywordTestKey) then
+		soundTestFrameCounters[keywordTestKey] = 0
+	  else
+		soundTestFrameCounters[keywordTestKey] = nil
+	  end
+	  if selectedSound and not Sounds.alertSoundFileSet[selectedSound] then
+		local flashKey = '##keywordSound' .. ':' .. tostring(index) .. ':' .. tostring(selectedSound or '')
+		soundPicker.restartMissingFlash(flashKey)
+	  end
 	end
 	ui.sameLine()
 	ui.setNextItemWidth(90)
-	local volume = sliders.withDefault('##keywordVolume', option.volume, 0, 300, '%.0f%%', sliders.defaults.keywordVolume, 1)
-	if keywordKey ~= '' and volume ~= option.volume then
+	local volume = sliders.withDefault('##keywordVolume', drafts.volume[index] or option.volume, 0, 300, '%.0f%%', sliders.defaults.keywordVolume, 1)
+	local sliderSize = ui.getItemRectSize()
+	-- Volume is saved when slider is released, not on every frame of a drag
+	drafts.volume[index] = keywordKey ~= '' and volume ~= option.volume and volume or nil
+	if drafts.volume[index] and not ui.itemActive() then
+	  drafts.volume[index] = nil
 	  keywordOptions[keywordKey] = { volume = volume, hidden = option.hidden }
 	  keywordSettingsChanged = true
 	end
 	ui.sameLine()
+	local soundToCheck = selectedSound or defaultAlertSoundFile
+	local soundDuration = soundPicker.durationOf(soundToCheck) or 1.0
+	-- Update elapsed time (frame counter ~60fps approximation)
+	local elapsedTime = 0
+	if soundTestFrameCounters[keywordTestKey] ~= nil and isSoundTestPlaying(keywordTestKey) then
+	  soundTestFrameCounters[keywordTestKey] = soundTestFrameCounters[keywordTestKey] + 1
+	  elapsedTime = soundTestFrameCounters[keywordTestKey] / 60
+	  elapsedTime = math.min(elapsedTime, soundDuration)
+	end
+	-- Display progress slider (reuses volume slider interface)
+	ui.setNextItemWidth(90)
+	ui.slider('##soundProgress', elapsedTime, 0, soundDuration, string.format('%.1fs/%.3fs', elapsedTime, soundDuration))
+	-- Slider value is read-only (progress controlled by frame counter)
+	ui.sameLine()
 	local keywordSoundWidth = ui.availableSpaceX() - keywordRowPadding
 	soundPicker.drawFile('##keywordSound', selectedSound, keywordSoundWidth, index, nil, soundPicker.usedSounds(keywordSoundAssignments), setSelectedSound)
+	-- Sound selector size measured, unused (kept for future reference)
+	local soundSelectorSize = ui.getItemRectSize()
 	ui.dummy(vec2(0, keywordRowPadding))
 	local rowBottom = ui.getCursorY()
 	local frameColor = modules.widgets.rowFrameColor()
@@ -219,21 +370,29 @@ local function drawAlertsTab()
 	ui.popID()
   end
   if #keywords > 0 then
-	ui.pushID('keywordAppend')
+	ui.pushID(options.idPrefix .. 'Append')
 	if ui.iconButton(ui.Icons.Plus, vec2(22, 22)) then
 	  insertAfterIndex = #keywords
 	end
 	ui.popID()
-  end
-  if removedKeywordIndex then
+   end
+
+   if insertAfterIndex then
+	clearKeywordDrafts(drafts)
+		table.insert(keywords, insertAfterIndex + 1, '')
+	keywordSettingsChanged = true
+   end
+
+   -- Delete keyword if confirmed
+   if removedKeywordIndex and deleteKeywordConfirmed then
+	clearKeywordDrafts(drafts)
 	table.remove(keywords, removedKeywordIndex)
 	keywordSettingsChanged = true
-  elseif insertAfterIndex then
-	table.insert(keywords, insertAfterIndex + 1, '')
-	keywordSettingsChanged = true
-  end
+	deleteKeywordConfirmed = false
+	removedKeywordIndex = nil
+   end
 
-  if removedKeywordIndex or insertAfterIndex then
+   if removedKeywordIndex or insertAfterIndex then
 	keywordDrag:reset()
   elseif keywordDrag.index then
 	local wasMoved, wasScrolling, wasIndex = keywordDrag.moved, keywordDrag.scrolling, keywordDrag.index
@@ -253,7 +412,8 @@ local function drawAlertsTab()
 	  Debug.trace(string.format('Keyword drag: start #%d', wasIndex))
 	end
 	for _, move in ipairs(moves) do
-	  keywords[move[1]], keywords[move[2]] = keywords[move[2]], keywords[move[1]]
+	  clearKeywordDrafts(drafts)
+			keywords[move[1]], keywords[move[2]] = keywords[move[2]], keywords[move[1]]
 	  keywordSettingsChanged = true
 	  Debug.trace(string.format('Keyword drag: #%d -> #%d', move[1], move[2]))
 	end
@@ -277,32 +437,13 @@ local function drawAlertsTab()
 	end
   end
   if keywordSettingsChanged then
-	local activeKeywords = {}
-	for _, keyword in ipairs(keywords) do
-	  local keywordKey = lowerText(keyword:match('^%s*(.-)%s*$'))
-	  if keywordKey ~= '' then activeKeywords[keywordKey] = true end
-	end
-	for keyword in pairs(keywordSoundAssignments) do
-	  if not activeKeywords[keyword] then keywordSoundAssignments[keyword] = nil end
-	end
-	for keyword in pairs(mutedKeywords) do
-	  if not activeKeywords[keyword] then mutedKeywords[keyword] = nil end
-	end
-	for keyword in pairs(keywordOptions) do
-	  if not activeKeywords[keyword] then keywordOptions[keyword] = nil end
-	end
-	saveKeywords(keywords)
-	saveKeywordSoundAssignments(keywordSoundAssignments)
-	saveMutedKeywords(mutedKeywords)
-	keywordOptionStore.save(keywordOptions)
-	if Profiles.activeKeywordProfileKey then
-	  saveKeywordProfile(Profiles.activeKeywordProfileKey)
-	elseif settings.useServerKeywordProfiles then
-	  settings.keywordProfileFallback = stringify(captureKeywordProfile(), true)
-	end
+	list.commit(keywords, keywordSoundAssignments, mutedKeywords, keywordOptions)
+	if options.afterSave then options.afterSave() end
   end
 end
 
 AlertsTab.drawAlertsTab = drawAlertsTab
+AlertsTab.drawAlertsTabHeader = drawAlertsTabHeader
 
 return AlertsTab
+

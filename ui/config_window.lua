@@ -12,10 +12,14 @@ local syncKeywordProfile = modules.profiles.syncKeywordProfile
 local refreshBackupList = modules.backup.refreshBackupList
 local refreshSharedKeywordFiles = modules.sharing.refreshSharedKeywordFiles
 local drawAlertsTab = modules.alertsTab.drawAlertsTab
+local drawAlertsTabHeader = modules.alertsTab.drawAlertsTabHeader
 local drawDisplayTab = modules.displayTab.drawDisplayTab
+local drawDisplayTabHeader = modules.displayTab.drawDisplayTabHeader
 local drawProfilesTab = modules.profilesTab.drawProfilesTab
 local drawToolsTab = modules.toolsTab.drawToolsTab
+local drawToolsTabHeader = modules.toolsTab.drawToolsTabHeader
 local drawTipsTab = modules.tipsTab.drawTipsTab
+local drawTipsTabHeader = modules.tipsTab.drawTipsTabHeader
 local drawTitleMarker = modules.widgets.drawTitleMarker
 
 local configGripSize = 14
@@ -23,6 +27,8 @@ local debugBannerColor = rgbm(1, 0.85, 0.2, 1)
 local debugBannerHeight = 72
 local debugBannerIconSize = 56
 local debugBannerPadding = 12
+local tabHeaderFrameHeight = 40
+local tabHeaderFrameColor = debugColor('rowFrame')
 
 -- Shown at the top of every tab while the general Debug mode is on.
 local function drawDebugBanner()
@@ -45,10 +51,38 @@ local function drawDebugBanner()
   ui.dummy(vec2(width, debugBannerHeight + debugBannerPadding))
 end
 
-local function tabContent(childId, drawContent)
+-- Sticky header frame shown at the top of every tab content, below the debug banner if present.
+-- Height is measured dynamically based on content
+local function drawTabHeaderFrame(drawHeader)
+  local origin = ui.getCursor()
+  local width = ui.availableSpaceX()
+  if drawHeader then
+	-- Draw header content to measure its height
+	ui.setCursorX(origin.x + 8)
+	ui.setCursorY(origin.y + 4)
+	drawHeader()
+	local endPos = ui.getCursor()
+	local measuredHeight = endPos.y - origin.y + 4 -- Add padding
+	-- Now draw the frame with the correct height
+	local frameColor = modules.widgets.rowFrameColor()
+	ui.drawRect(origin, origin + vec2(width, measuredHeight), frameColor, 1.5, ui.CornerFlags.All, 2)
+	ui.setCursorY(origin.y + measuredHeight)
+	return measuredHeight
+  else
+	-- Empty frame with default height
+	local frameColor = modules.widgets.rowFrameColor()
+	ui.drawRect(origin, origin + vec2(width, tabHeaderFrameHeight), frameColor, 1.5, ui.CornerFlags.All, 2)
+	ui.dummy(vec2(width, tabHeaderFrameHeight))
+	return tabHeaderFrameHeight
+  end
+end
+
+local function tabContent(childId, drawContent, drawHeader)
   return function()
 	-- The banner sits outside the child, so it stays visible while the tab content scrolls.
 	if settings.debugEnabled then drawDebugBanner() end
+	-- The header frame is also outside the child, stays visible while content scrolls.
+	drawTabHeaderFrame(drawHeader)
 	local contentSize = ui.availableSpace()
 	if ui.beginChild(childId, contentSize, false, ui.WindowFlags.AlwaysVerticalScrollbar) then
 	  drawContent()
@@ -57,12 +91,24 @@ local function tabContent(childId, drawContent)
   end
 end
 
-local tabAlerts = { 'Alerts', tabContent('AlertsContent', drawAlertsTab) }
-local tabDisplay = { 'Display', tabContent('DisplayContent', drawDisplayTab) }
+local tabAlerts = { 'Alerts', tabContent('AlertsContent', drawAlertsTab, drawAlertsTabHeader) }
+local tabDisplay = { 'Display', tabContent('DisplayContent', drawDisplayTab, drawDisplayTabHeader) }
 local tabProfiles = { 'Profiles', tabContent('ProfilesContent', drawProfilesTab) }
-local tabHistory = { 'History', tabContent('HistoryContent', function() alertHistory.drawTab() end) }
-local tabTools = { 'Tools', tabContent('ToolsContent', drawToolsTab) }
-local tabTips = { 'Tips', tabContent('TipsContent', drawTipsTab) }
+local function historyTabHeaderWrapper()
+  if ui.button(modules.i18n.tr('Copy history'), vec2(-0.1, 0)) then
+    local lines = {}
+    for _, entry in ipairs(alertHistory.items) do
+      table.insert(lines, alertHistory.formatEntry(entry))
+    end
+    ac.setClipboardText(table.concat(lines, '\n'))
+  end
+  if ui.button(modules.i18n.tr('Clear history'), vec2(-0.1, 0)) then
+    alertHistory.clear()
+  end
+end
+local tabHistory = { 'History', tabContent('HistoryContent', function() alertHistory.drawEntries() end, historyTabHeaderWrapper) }
+local tabTools = { 'Tools', tabContent('ToolsContent', drawToolsTab, drawToolsTabHeader) }
+local tabTips = { 'Tips', tabContent('TipsContent', drawTipsTab, drawTipsTabHeader) }
 
 -- ImGui keeps a tab bar's order from its first frame, so each order uses its own bar ID.
 local tabsTipsFirst = { tabTips, tabAlerts, tabDisplay, tabProfiles, tabHistory, tabTools }

@@ -191,7 +191,8 @@ local function applyAllSettings(profile, validateOnly)
 	if validateOnly then return true end
   for key, value in pairs(profile) do
 	if key ~= 'textColor' and key ~= 'authorColor' and key ~= 'playerColor' and key ~= 'friendColor' and key ~= 'outlineColor'
-		and key ~= 'backgroundColor' and key ~= 'accentColor' and settings[key] ~= nil then
+		and key ~= 'backgroundColor' and key ~= 'accentColor' and key ~= 'mainWindowPosition' and key ~= 'mainWindowSize'
+		and settings[key] ~= nil then
 	  settings[key] = value
 	end
   end
