@@ -14,7 +14,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $source = $PSScriptRoot
-$excludeDirs = @('.git', '.vs', 'session-state', 'ServerSharedKeywords', 'tools', 'icons', 'INFERNO-DEV')
+$excludeDirs = @('.git', '.vs', 'session-state', 'ServerSharedKeywords', 'tools', 'icons', 'INFERNO-DEV', 'Dev-Sounds')
 $excludeFiles = @('debug_log.txt', '*.code-workspace', '.gitignore', '.gitattributes', '*.md', 'deploy.ps1')
 
 function Copy-ModFiles([string]$from, [string]$destination, [string[]]$dirs) {
