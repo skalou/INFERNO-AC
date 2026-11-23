@@ -193,8 +193,11 @@ function drawKeywordList(list, drafts, drag, options)
 		-- Pulsing orange background (blinking effect)
 		local pulse = math.sin(ui.time() * 4) * 0.5 + 0.5  -- 0 to 1, pulsing at 4 Hz
 		local bgColor = rgbm(1, 0.6, 0, pulse * 0.6)  -- orange with pulsing alpha
+		local deleteLabel = tr('Delete this alert?')
+		local labelOrigin = ui.getCursor()
+		ui.drawRectFilled(labelOrigin, labelOrigin + ui.measureText(deleteLabel), bgColor, 0)
 		ui.pushStyleColor(ui.StyleColor.FrameBg, bgColor)
-		Widgets.text(tr('Delete this alert?'))
+		Widgets.text(deleteLabel)
 		ui.sameLine()
 		if ui.checkbox('##deleteConfirm_' .. index, deleteKeywordConfirmed) then
 		  deleteKeywordConfirmed = not deleteKeywordConfirmed
